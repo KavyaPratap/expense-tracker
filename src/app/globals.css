@@ -112,6 +112,9 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground font-sans;
     overscroll-behavior: none;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    min-height: 100vh;
   }
 
   /* PWA Safe Area Support */
