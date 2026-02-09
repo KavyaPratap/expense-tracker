@@ -43,3 +43,32 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+# Android Signing
+*.jks
+*.keystore
+keystore.properties
+android/keystore.properties
+google-services.json
+
+# iOS Signing
+*.p12
+*.mobileprovision
+GoogleService-Info.plist
+
+# IDEs and Editors
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Android
+android/.gradle
+android/local.properties
+android/app/build
+android/captures
+
+# iOS
+ios/App/Pods
+ios/DerivedData

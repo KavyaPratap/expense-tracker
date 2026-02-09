@@ -40,6 +40,7 @@ import {
   DollarSign,
   Euro,
   PoundSterling,
+  Fingerprint,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -135,6 +136,23 @@ const Settings = () => {
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
+
+  const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
+
+  useEffect(() => {
+    const enabled = localStorage.getItem('biometric_enabled') === 'true';
+    setIsBiometricEnabled(enabled);
+  }, []);
+
+  const handleBiometricToggle = (enabled: boolean) => {
+    setIsBiometricEnabled(enabled);
+    localStorage.setItem('biometric_enabled', String(enabled));
+    if (enabled) {
+      toast.success('Biometric login enabled');
+    } else {
+      toast.info('Biometric login disabled');
+    }
+  };
 
   const handleInstallClick = async () => {
     if (installPrompt) {
@@ -326,6 +344,13 @@ const Settings = () => {
           toggle: true,
           value: currentSettings.notifications,
           onChange: (v: boolean) => updateSettings({ notifications: v }),
+        },
+        {
+          icon: Fingerprint,
+          label: 'Biometric Login',
+          toggle: true,
+          value: isBiometricEnabled,
+          onChange: handleBiometricToggle,
         },
         {
           icon: Moon,
