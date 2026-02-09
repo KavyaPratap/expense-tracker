@@ -5,6 +5,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { createClient } from './client'
 import type { SupabaseClient, Session } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 type SupabaseContextType = {
   supabase: SupabaseClient
@@ -37,29 +38,35 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     // Listen for deep links (OAuth redirects)
     import('@capacitor/app').then(({ App }) => {
       App.addListener('appUrlOpen', async (data: { url: string }) => {
+        console.log('Deep link received:', data.url);
+        // toast.info('Verifying login...'); // Optional: uncomment if you want user to see this
         if (data.url.includes('google-auth')) {
-          // Extract the fragment from the URL (Supabase returns #access_token=...)
-          // We can just let supabase handle the URL if we pass it correctly, 
-          // or we can manually parse it. 
-          // Ideally, supabase.auth.getSession() might pick it up if the URL is in the window,
-          // but in Capacitor, we might need to help it.
-
-          // Actually, the best way for Supabase in Capacitor is to extract the tokens from the URL.
           const url = new URL(data.url);
           const params = new URLSearchParams(url.hash.substring(1)); // remove #
           const accessToken = params.get('access_token');
           const refreshToken = params.get('refresh_token');
 
           if (accessToken && refreshToken) {
+            toast.info('Authenticating...');
             const { data: { session }, error } = await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken,
             });
 
+            if (error) {
+              console.error('Session error:', error);
+              toast.error(`Login failed: ${error.message}`);
+            }
+
             if (session) {
+              toast.success('Login successful!');
               setSession(session);
+              router.refresh();
               router.push('/dashboard');
             }
+          } else {
+            console.warn('No tokens found in URL');
+            // toast.error('Login failed: No tokens found');
           }
         }
       });
