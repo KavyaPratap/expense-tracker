@@ -39,17 +39,16 @@ export default function BiometricAuthGuard({ children }: { children: React.React
 
     const performBiometricAuth = async () => {
         try {
-            const verified = await NativeBiometric.verifyIdentity({
+            await NativeBiometric.verifyIdentity({
                 reason: "Unlock SmartSpend",
                 title: "Authentication Required",
                 subtitle: "Confirm your identity to continue",
                 description: "Use your fingerprint or face ID"
             });
 
-            if (verified) {
-                setIsLocked(false);
-                toast.success("Identity verified");
-            }
+            // If we get here, verification succeeded (plugin throws on failure)
+            setIsLocked(false);
+            toast.success("Identity verified");
         } catch (error) {
             console.error("Authentication failed", error);
             toast.error("Authentication failed");
