@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { Capacitor } from '@capacitor/core';
 
 const GoogleIcon = () => (
   <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48">
@@ -54,10 +55,16 @@ export default function Login() {
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
+
+    const isNative = Capacitor.isNativePlatform();
+    const redirectTo = isNative
+      ? 'com.smartspend.app://google-auth'
+      : `${location.origin}/auth/callback`;
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${location.origin}/auth/callback`,
+        redirectTo,
       },
     });
 
@@ -68,80 +75,80 @@ export default function Login() {
   };
 
   return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
-        <Card className="w-full max-w-sm">
-          <CardHeader>
-            <CardTitle className="text-2xl">Login</CardTitle>
-            <CardDescription>
-              Enter your email below to login to your account.
-            </CardDescription>
-          </CardHeader>
+    <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-2xl">Login</CardTitle>
+          <CardDescription>
+            Enter your email below to login to your account.
+          </CardDescription>
+        </CardHeader>
 
-          <CardContent className="grid gap-4">
-            <Button
-              variant="outline"
-              onClick={handleGoogleSignIn}
-              disabled={googleLoading || loading}
-            >
-              {googleLoading ? "Signing in..." : (
-                <>
-                  <GoogleIcon />
-                  Sign in with Google
-                </>
-              )}
-            </Button>
+        <CardContent className="grid gap-4">
+          <Button
+            variant="outline"
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading || loading}
+          >
+            {googleLoading ? "Signing in..." : (
+              <>
+                <GoogleIcon />
+                Sign in with Google
+              </>
+            )}
+          </Button>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Or continue with
-                </span>
-              </div>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
             </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Or continue with
+              </span>
+            </div>
+          </div>
 
-            <form onSubmit={handleLogin} className="grid gap-4">
-              <div className="grid gap-2">
-                <Label>Email</Label>
-                <Input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading || googleLoading}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Password</Label>
-                <Input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading || googleLoading}
-                />
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full"
+          <form onSubmit={handleLogin} className="grid gap-4">
+            <div className="grid gap-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 disabled={loading || googleLoading}
-              >
-                {loading ? "Logging in..." : "Login"}
-              </Button>
-            </form>
-
-            <div className="text-center text-sm">
-              Don’t have an account?{" "}
-              <Link href="/signup" className="underline">
-                Sign up
-              </Link>
+              />
             </div>
-          </CardContent>
-        </Card>
-      </div>
+
+            <div className="grid gap-2">
+              <Label>Password</Label>
+              <Input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading || googleLoading}
+              />
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading || googleLoading}
+            >
+              {loading ? "Logging in..." : "Login"}
+            </Button>
+          </form>
+
+          <div className="text-center text-sm">
+            Don’t have an account?{" "}
+            <Link href="/signup" className="underline">
+              Sign up
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };

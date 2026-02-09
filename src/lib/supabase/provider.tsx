@@ -34,8 +34,42 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       setSession(session)
     })
 
+    // Listen for deep links (OAuth redirects)
+    import('@capacitor/app').then(({ App }) => {
+      App.addListener('appUrlOpen', async (data) => {
+        if (data.url.includes('google-auth')) {
+          // Extract the fragment from the URL (Supabase returns #access_token=...)
+          // We can just let supabase handle the URL if we pass it correctly, 
+          // or we can manually parse it. 
+          // Ideally, supabase.auth.getSession() might pick it up if the URL is in the window,
+          // but in Capacitor, we might need to help it.
+
+          // Actually, the best way for Supabase in Capacitor is to extract the tokens from the URL.
+          const url = new URL(data.url);
+          const params = new URLSearchParams(url.hash.substring(1)); // remove #
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+
+          if (accessToken && refreshToken) {
+            const { data: { session }, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+
+            if (session) {
+              setSession(session);
+              router.push('/dashboard');
+            }
+          }
+        }
+      });
+    });
+
     return () => {
       subscription.unsubscribe()
+      import('@capacitor/app').then(({ App }) => {
+        App.removeAllListeners();
+      });
     }
   }, [supabase, router])
 
