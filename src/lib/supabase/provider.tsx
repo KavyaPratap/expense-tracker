@@ -36,7 +36,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for deep links (OAuth redirects)
     import('@capacitor/app').then(({ App }) => {
-      App.addListener('appUrlOpen', async (data) => {
+      App.addListener('appUrlOpen', async (data: { url: string }) => {
         if (data.url.includes('google-auth')) {
           // Extract the fragment from the URL (Supabase returns #access_token=...)
           // We can just let supabase handle the URL if we pass it correctly, 
