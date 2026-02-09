@@ -20,12 +20,16 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
+    // 4. Listen for auth state changes and redirect UI
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
-      // On sign-in or sign-out, refresh the page to trigger middleware
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+      if (session && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        // toast.success('Session active'); 
+        // Optional: Logic to redirect if on login page? 
+        // Typically handle redirection in the component or middleware, 
+        // but we can force it here if strictly needed.
         router.refresh()
       }
     })
@@ -35,38 +39,56 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       setSession(session)
     })
 
-    // Listen for deep links (OAuth redirects)
+    // 3. Handle redirect inside the app (Capacitor)
     import('@capacitor/app').then(({ App }) => {
       App.addListener('appUrlOpen', async (data: { url: string }) => {
         console.log('Deep link received:', data.url);
-        // toast.info('Verifying login...'); // Optional: uncomment if you want user to see this
+
+        // Strict check matching the manifest host/scheme if needed, or just include check
         if (data.url.includes('google-auth')) {
+          toast.info('Verifying authentication...');
+
+          // Strategies:
+          // A) Parse #access_token (Implicit Flow - default for client-side)
+          // B) Parse ?code (PKCE Flow - safer, often used with SSR)
+
           const url = new URL(data.url);
-          const params = new URLSearchParams(url.hash.substring(1)); // remove #
-          const accessToken = params.get('access_token');
-          const refreshToken = params.get('refresh_token');
+          const hashParams = new URLSearchParams(url.hash.substring(1));
+          const searchParams = url.searchParams;
+
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+          const code = searchParams.get('code');
 
           if (accessToken && refreshToken) {
-            toast.info('Authenticating...');
+            // Implicit Flow handling
             const { data: { session }, error } = await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken,
             });
-
             if (error) {
-              console.error('Session error:', error);
-              toast.error(`Login failed: ${error.message}`);
-            }
-
-            if (session) {
-              toast.success('Login successful!');
+              toast.error(`Auth Error: ${error.message}`);
+            } else if (session) {
+              toast.success('Login Successful!');
               setSession(session);
-              // Force hard navigation to ensure clean state
+              window.location.href = '/dashboard';
+            }
+          } else if (code) {
+            // PKCE Flow handling (if exchangeCodeForSession is needed)
+            // Note: supabase-js usually handles this if you pass the URL to getSession
+            // but exchangeCodeForSession is explicit.
+            const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(code);
+            if (error) {
+              toast.error(`Exchange Error: ${error.message}`);
+            } else if (session) {
+              toast.success('Login Successful!');
+              setSession(session);
               window.location.href = '/dashboard';
             }
           } else {
-            console.warn('No tokens found in URL');
-            // toast.error('Login failed: No tokens found');
+            // If Supabase can handle the URL automatically
+            // await supabase.auth.getSession(); 
+            console.warn('No tokens or code found in URL');
           }
         }
       });
