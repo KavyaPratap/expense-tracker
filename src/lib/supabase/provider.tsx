@@ -61,8 +61,8 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
             if (session) {
               toast.success('Login successful!');
               setSession(session);
-              router.refresh();
-              router.push('/dashboard');
+              // Force hard navigation to ensure clean state
+              window.location.href = '/dashboard';
             }
           } else {
             console.warn('No tokens found in URL');
