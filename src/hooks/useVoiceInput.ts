@@ -1,4 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { SpeechRecognition } from "@capacitor-community/speech-recognition";
+import { Capacitor } from '@capacitor/core';
+import { toast } from 'sonner';
 
 interface VoiceInputState {
     isListening: boolean;
@@ -19,96 +22,156 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
     const [transcript, setTranscript] = useState('');
     const [interimTranscript, setInterimTranscript] = useState('');
     const [error, setError] = useState<string | null>(null);
-    const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
+    const [isSupported, setIsSupported] = useState(false);
+
+    // Ref to hold web recognition instance if needed
+    const webRecognitionRef = useRef<SpeechRecognition | null>(null);
 
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (SpeechRecognition) {
-                const recognitionInstance = new SpeechRecognition();
-                recognitionInstance.continuous = false; // Changed to false for better stability with one-shot commands
-                recognitionInstance.interimResults = true;
-                recognitionInstance.lang = 'en-US'; // Default to English
+        checkSupport();
 
-                recognitionInstance.onstart = () => {
-                    console.log("[VoiceInput] Recognition started");
-                    setIsListening(true);
-                    setError(null);
-                };
+        // Cleanup function for web recognition
+        return () => {
+            if (webRecognitionRef.current) {
+                webRecognitionRef.current.abort();
+            }
+        };
+    }, []);
 
-                recognitionInstance.onend = () => {
-                    console.log("[VoiceInput] Recognition ended");
-                    // We don't automatically set isListening to false here if we want to support 
-                    // a more robust multi-shot, but for one-shot it's fine.
-                    // However, we should check if it was an intentional stop.
-                    setIsListening(false);
-                };
+    const checkSupport = async () => {
+        if (Capacitor.isNativePlatform()) {
+            // Check if plugin is available (it should be if installed)
+            try {
+                const { available } = await SpeechRecognition.available();
+                setIsSupported(available);
+            } catch (e) {
+                console.error("Native Speech Recognition check failed:", e);
+                setIsSupported(false);
+            }
+        } else {
+            // Web Fallback
+            if (typeof window !== 'undefined' && (window.SpeechRecognition || (window as any).webkitSpeechRecognition)) {
+                setIsSupported(true);
+            } else {
+                setIsSupported(false);
+            }
+        }
+    };
 
-                recognitionInstance.onerror = (event: any) => {
-                    console.error("[VoiceInput] Recognition error:", event.error);
+    const startListening = useCallback(async () => {
+        setError(null);
+        setTranscript(''); // Clear previous transcript on new start? Or keep appending? User might want to append. Let's clear for "command" style.
 
-                    if (event.error === 'no-speech') {
-                        // Ignore no-speech errors to avoid annoying toast, 
-                        // just stop listening.
-                        setIsListening(false);
+        if (Capacitor.isNativePlatform()) {
+            try {
+                // Check/Request Permissions
+                const { speechRecognition: permission } = await SpeechRecognition.checkPermissions();
+                if (permission !== 'granted') {
+                    const { speechRecognition: newPermission } = await SpeechRecognition.requestPermissions();
+                    if (newPermission !== 'granted') {
+                        setError("Microphone permission denied");
                         return;
                     }
+                }
 
-                    setError(event.error);
-                    setIsListening(false);
-                };
+                setIsListening(true);
 
-                recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
-                    console.log("[VoiceInput] Result received", event.results);
-                    let final = '';
-                    let interim = '';
+                // Start listening
+                await SpeechRecognition.start({
+                    partialResults: true,
+                    popup: false, // Android specific, set to true if you want system dialog, false for custom UI
+                });
 
-                    for (let i = event.resultIndex; i < event.results.length; ++i) {
-                        if (event.results[i].isFinal) {
-                            final += event.results[i][0].transcript;
-                        } else {
-                            interim += event.results[i][0].transcript;
-                        }
+                // Add listeners
+                SpeechRecognition.addListener('partialResults', (data: { matches: string[] }) => {
+                    if (data.matches && data.matches.length > 0) {
+                        setInterimTranscript(data.matches[0]);
                     }
+                });
 
-                    if (final) {
-                        setTranscript((prev) => prev + (prev ? ' ' : '') + final);
+                SpeechRecognition.addListener('listeningState', (data: { status: "started" | "stopped" }) => {
+                    if (data.status === "stopped") {
+                        setIsListening(false);
+                    } else {
+                        setIsListening(true);
                     }
-                    setInterimTranscript(interim);
-                };
+                });
 
-                setRecognition(recognitionInstance);
-
-                return () => {
-                    recognitionInstance.abort();
-                };
-            } else {
-                setError('Speech recognition is not supported in this browser.');
+            } catch (e: any) {
+                console.error("Native start failed:", e);
+                setError(e.message || "Failed to start voice input");
+                setIsListening(false);
             }
+        } else {
+            // Web Logic
+            const SpeechRecognitionConstructor = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
+            if (!SpeechRecognitionConstructor) return;
+
+            const recognition = new SpeechRecognitionConstructor();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => setIsListening(true);
+            recognition.onend = () => setIsListening(false);
+            recognition.onerror = (event: any) => {
+                if (event.error === 'no-speech') return;
+                setError(event.error);
+                setIsListening(false);
+            };
+            recognition.onresult = (event: SpeechRecognitionEvent) => {
+                let interim = '';
+                let final = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        final += event.results[i][0].transcript;
+                    } else {
+                        interim += event.results[i][0].transcript;
+                    }
+                }
+                if (final) setTranscript(prev => prev + ' ' + final); // Append
+                setInterimTranscript(interim);
+            };
+
+            webRecognitionRef.current = recognition;
+            recognition.start();
         }
     }, []);
 
-    const startListening = useCallback(() => {
-        if (recognition && !isListening) {
+    const stopListening = useCallback(async () => {
+        if (Capacitor.isNativePlatform()) {
             try {
-                recognition.start();
+                await SpeechRecognition.stop();
+                setIsListening(false);
+
+                // Clean up listeners? The plugin handles it usually, but good practice.
+                await SpeechRecognition.removeAllListeners();
             } catch (e) {
-                console.error("Failed to start recognition:", e);
+                console.error("Native stop failed", e);
+            }
+        } else {
+            if (webRecognitionRef.current) {
+                webRecognitionRef.current.stop();
             }
         }
-    }, [recognition, isListening]);
-
-    const stopListening = useCallback(() => {
-        if (recognition && isListening) {
-            recognition.stop();
-        }
-    }, [recognition, isListening]);
+    }, []);
 
     const reset = useCallback(() => {
         setTranscript('');
         setInterimTranscript('');
         setError(null);
     }, []);
+
+    // For Native: Validating the final result when listening stops
+    // The plugin might not send a "final" result event like web.
+    // We usually get partial results. The last partial result is effectively the final one when it stops.
+    useEffect(() => {
+        if (Capacitor.isNativePlatform() && !isListening && interimTranscript) {
+            setTranscript(interimTranscript);
+            setInterimTranscript('');
+        }
+    }, [isListening, interimTranscript]);
+
 
     return {
         isListening,
@@ -118,6 +181,6 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
         startListening,
         stopListening,
         reset,
-        isSupported: !!recognition,
+        isSupported,
     };
 };

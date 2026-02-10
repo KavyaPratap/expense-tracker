@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@capacitor-community/speech-recognition": "^7.0.1",
     "@capacitor/android": "^8.0.2",
     "@capacitor/app": "^8.0.0",
     "@capacitor/app-launcher": "^8.0.0",
