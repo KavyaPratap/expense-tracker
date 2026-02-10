@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Mic, MicOff, Check, X, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { Button } from "@/components/ui/button";
 import {
@@ -123,7 +124,14 @@ export const VoiceExpenseWidget = () => {
 
     return (
         <>
-            <div className="fixed bottom-6 right-6 z-50">
+            <motion.div
+                drag
+                dragMomentum={false}
+                whileDrag={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                className="fixed z-50 touch-none"
+                style={{ bottom: '1.5rem', right: '1.5rem' }} // Initial position
+            >
                 <Button
                     onClick={isListening ? stopListening : startListening}
                     size="icon"
@@ -140,7 +148,7 @@ export const VoiceExpenseWidget = () => {
                         <Mic className="h-6 w-6 text-white" />
                     )}
                 </Button>
-            </div>
+            </motion.div>
 
             <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
                 <DialogContent className="sm:max-w-md">

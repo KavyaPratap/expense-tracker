@@ -47,11 +47,16 @@ export default function SignUp() {
     e.preventDefault();
     setLoading(true);
 
+    const isNative = Capacitor.isNativePlatform();
+    const emailRedirectTo = isNative
+      ? 'com.smartspend.app://auth-callback'
+      : `${location.origin}/auth/callback`;
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${location.origin}/auth/callback`,
+        emailRedirectTo,
       },
     });
 

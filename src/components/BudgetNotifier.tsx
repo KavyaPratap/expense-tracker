@@ -111,7 +111,7 @@ export const BudgetNotifier = () => {
       setTriggeredBudget(next);
 
       // Send system notification if enabled
-      if (settings?.notifications) {
+      if (settings?.notifications === true) {
         const spentAmount = next.spent || 0;
         const percent = ((spentAmount / (next.amount || 1)) * 100).toFixed(0);
 
