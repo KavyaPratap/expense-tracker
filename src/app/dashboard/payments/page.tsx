@@ -39,7 +39,7 @@ import { Capacitor } from '@capacitor/core';
 const upiOptions = [
   { name: 'Google Pay', icon: Smartphone, scheme: 'tez://' },
   { name: 'PhonePe', icon: Wallet, scheme: 'phonepe://' },
-  { name: 'Paytm', icon: CreditCard, scheme: 'paytm://' },
+  { name: 'Paytm', icon: CreditCard, scheme: 'paytmmp://' }, // Updated to paytmmp scheme
   { name: 'Any UPI App', icon: Wallet, scheme: 'upi://pay' },
 ];
 
@@ -83,25 +83,28 @@ const Payments = () => {
   const handleOpenUPI = async (scheme: string) => {
     // If on web (mobile browser), directly try to open the scheme
     if (Capacitor.getPlatform() === 'web') {
-      // swift fallback for web might work better with window.open
       window.open(scheme, '_self');
       return;
     }
 
     try {
-      // Try to open with AppLauncher (native app)
-      // ... (native logic)
-      const { value } = await AppLauncher.canOpenUrl({ url: scheme });
-
-      if (value) {
-        await AppLauncher.openUrl({ url: scheme });
-      } else {
-        toast.error('App not installed');
-      }
+      // Try to open with AppLauncher directly first
+      // This avoids false negatives from canOpenUrl on some Android versions
+      await AppLauncher.openUrl({ url: scheme });
     } catch (e) {
-      console.error("Error opening app", e);
-      // Fallback
-      window.location.href = scheme;
+      console.warn("Direct open failed, checking availability...", e);
+      try {
+        const { value } = await AppLauncher.canOpenUrl({ url: scheme });
+        if (value) {
+          // It says it can open, but openUrl failed. Try fallback to window location
+          window.location.href = scheme;
+        } else {
+          toast.error('App not installed');
+        }
+      } catch (checkError) {
+        // IF even check fails, try last resort
+        window.location.href = scheme;
+      }
     }
   };
 

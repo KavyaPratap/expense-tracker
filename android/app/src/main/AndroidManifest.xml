@@ -7,6 +7,7 @@
         <package android:name="net.one97.paytm" />
         <package android:name="in.org.npci.upiapp" />
         <package android:name="com.whatsapp" />
+        <package android:name="com.google.android.apps.walletnfcrel" />
         
         <!-- Specific schemes used in AppLauncher -->
         <intent>
@@ -20,6 +21,10 @@
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="paytm" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="paytmmp" />
         </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />
