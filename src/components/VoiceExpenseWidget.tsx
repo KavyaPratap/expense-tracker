@@ -127,16 +127,20 @@ export const VoiceExpenseWidget = () => {
             <motion.div
                 drag
                 dragMomentum={false}
-                whileDrag={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                className="fixed z-50 touch-none"
-                style={{ bottom: '1.5rem', right: '1.5rem' }} // Initial position
+                dragElastic={0.1}
+                whileDrag={{ scale: 1.1, cursor: "grabbing" }}
+                whileTap={{ scale: 0.95 }}
+                className="fixed z-50"
+                style={{ bottom: '1.5rem', right: '1.5rem', touchAction: 'none' }} // touchAction: none allows the drag gesture to override native scrolling
             >
                 <Button
+                    // We remove onClick here and handle it via onTap in motion if needed, or just let it bubble.
+                    // But to prevent drag from triggering click, we can use a small check or just let framer handle it.
+                    // Framer separates tap and drag well.
                     onClick={isListening ? stopListening : startListening}
                     size="icon"
                     className={cn(
-                        "h-14 w-14 rounded-full shadow-lg transition-all duration-300",
+                        "h-14 w-14 rounded-full shadow-lg transition-all duration-300 pointer-events-auto", // Ensure events are captured
                         isListening
                             ? "bg-red-500 hover:bg-red-600 animate-pulse scale-110"
                             : "bg-primary hover:bg-primary/90"
