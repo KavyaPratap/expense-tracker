@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Mic, MicOff, Check, X, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
@@ -32,6 +32,9 @@ export const VoiceExpenseWidget = () => {
     } = useVoiceInput();
     const { addTransaction } = useApp();
     const pathname = usePathname();
+
+    // Track if we are currently dragging to prevent click/tap on release
+    const isDragging = useRef(false);
 
 
 
@@ -130,7 +133,22 @@ export const VoiceExpenseWidget = () => {
                 dragElastic={0.1}
                 whileDrag={{ scale: 1.1, cursor: "grabbing" }}
                 whileTap={{ scale: 0.95 }}
-                onTap={() => (isListening ? stopListening() : startListening())}
+                onDragStart={() => {
+                    isDragging.current = true;
+                }}
+                onDragEnd={() => {
+                    // Small timeout to allow tap to potentially fire if it was a very quick drag (unlikely with drag prop)
+                    // but mainly to reset the flag. 
+                    // However, we want to BLOCK the tap if it WAS a drag.
+                    setTimeout(() => {
+                        isDragging.current = false;
+                    }, 50);
+                }}
+                onTap={() => {
+                    if (!isDragging.current) {
+                        isListening ? stopListening() : startListening();
+                    }
+                }}
                 className="fixed z-50 cursor-pointer"
                 style={{ bottom: '1.5rem', right: '1.5rem', touchAction: 'none' }} // touchAction: none allows the drag gesture to override native scrolling
             >

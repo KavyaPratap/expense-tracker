@@ -64,6 +64,9 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
 
         if (Capacitor.isNativePlatform()) {
             try {
+                // Ensure clean state before starting
+                await SpeechRecognition.removeAllListeners();
+
                 // Check/Request Permissions
                 const { speechRecognition: permission } = await SpeechRecognition.checkPermissions();
                 if (permission !== 'granted') {
@@ -142,12 +145,12 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
         if (Capacitor.isNativePlatform()) {
             try {
                 await SpeechRecognition.stop();
-                setIsListening(false);
-
-                // Clean up listeners? The plugin handles it usually, but good practice.
-                await SpeechRecognition.removeAllListeners();
             } catch (e) {
                 console.error("Native stop failed", e);
+            } finally {
+                setIsListening(false);
+                // Clean up listeners
+                await SpeechRecognition.removeAllListeners();
             }
         } else {
             if (webRecognitionRef.current) {

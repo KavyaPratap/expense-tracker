@@ -2,13 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>LSApplicationQueriesSchemes</key>
-    <array>
-        <string>gpay</string>
-        <string>phonepe</string>
-        <string>paytmmp</string>
-        <string>upi</string>
-    </array>
     <key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
@@ -54,9 +47,5 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>SmartSpend needs access to your microphone to record voice expenses.</string>
-    <key>NSFaceIDUsageDescription</key>
-    <string>Use Face ID to securely log in to SmartSpend.</string>
 </dict>
 </plist>
