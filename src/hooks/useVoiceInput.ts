@@ -82,7 +82,9 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
                 if (permission !== 'granted') {
                     const { speechRecognition: newPermission } = await SpeechRecognition.requestPermissions();
                     if (newPermission !== 'granted') {
-                        setError("Microphone permission denied");
+                        const msg = "Microphone permission denied";
+                        setError(msg);
+                        toast.error(msg);
                         isProcessingRef.current = false;
                         return;
                     }
@@ -114,7 +116,9 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
 
             } catch (e: any) {
                 console.error("Native start failed:", e);
-                setError(e.message || "Failed to start voice input");
+                const msg = e.message || "Failed to start voice input";
+                setError(msg);
+                toast.error(`Voice Error: ${msg}`);
                 setIsListening(false);
                 isProcessingRef.current = false;
             }
