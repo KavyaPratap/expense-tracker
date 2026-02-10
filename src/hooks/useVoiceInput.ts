@@ -58,14 +58,24 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
         }
     };
 
+    // Ref to prevent concurrent start/stop operations
+    const isProcessingRef = useRef(false);
+
     const startListening = useCallback(async () => {
+        if (isProcessingRef.current || isListening) return;
+        isProcessingRef.current = true;
         setError(null);
-        setTranscript(''); // Clear previous transcript on new start? Or keep appending? User might want to append. Let's clear for "command" style.
+        setTranscript('');
 
         if (Capacitor.isNativePlatform()) {
             try {
                 // Ensure clean state before starting
-                await SpeechRecognition.removeAllListeners();
+                try {
+                    await SpeechRecognition.removeAllListeners();
+                    await SpeechRecognition.stop(); // Try to stop just in case
+                } catch (e) {
+                    // Ignore errors during cleanup
+                }
 
                 // Check/Request Permissions
                 const { speechRecognition: permission } = await SpeechRecognition.checkPermissions();
@@ -73,6 +83,7 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
                     const { speechRecognition: newPermission } = await SpeechRecognition.requestPermissions();
                     if (newPermission !== 'granted') {
                         setError("Microphone permission denied");
+                        isProcessingRef.current = false;
                         return;
                     }
                 }
@@ -82,19 +93,20 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
                 // Start listening
                 await SpeechRecognition.start({
                     partialResults: true,
-                    popup: false, // Android specific, set to true if you want system dialog, false for custom UI
+                    popup: false,
                 });
 
                 // Add listeners
-                SpeechRecognition.addListener('partialResults', (data: { matches: string[] }) => {
+                await SpeechRecognition.addListener('partialResults', (data: { matches: string[] }) => {
                     if (data.matches && data.matches.length > 0) {
                         setInterimTranscript(data.matches[0]);
                     }
                 });
 
-                SpeechRecognition.addListener('listeningState', (data: { status: "started" | "stopped" }) => {
+                await SpeechRecognition.addListener('listeningState', (data: { status: "started" | "stopped" }) => {
                     if (data.status === "stopped") {
                         setIsListening(false);
+                        isProcessingRef.current = false; // Release lock when stopped
                     } else {
                         setIsListening(true);
                     }
@@ -104,11 +116,15 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
                 console.error("Native start failed:", e);
                 setError(e.message || "Failed to start voice input");
                 setIsListening(false);
+                isProcessingRef.current = false;
             }
         } else {
             // Web Logic
             const SpeechRecognitionConstructor = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
-            if (!SpeechRecognitionConstructor) return;
+            if (!SpeechRecognitionConstructor) {
+                isProcessingRef.current = false;
+                return;
+            }
 
             const recognition = new SpeechRecognitionConstructor();
             recognition.continuous = false;
@@ -116,11 +132,15 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
             recognition.lang = 'en-US';
 
             recognition.onstart = () => setIsListening(true);
-            recognition.onend = () => setIsListening(false);
+            recognition.onend = () => {
+                setIsListening(false);
+                isProcessingRef.current = false;
+            };
             recognition.onerror = (event: any) => {
                 if (event.error === 'no-speech') return;
                 setError(event.error);
                 setIsListening(false);
+                isProcessingRef.current = false;
             };
             recognition.onresult = (event: SpeechRecognitionEvent) => {
                 let interim = '';
@@ -132,16 +152,19 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
                         interim += event.results[i][0].transcript;
                     }
                 }
-                if (final) setTranscript(prev => prev + ' ' + final); // Append
+                if (final) setTranscript(prev => prev + ' ' + final);
                 setInterimTranscript(interim);
             };
 
             webRecognitionRef.current = recognition;
             recognition.start();
         }
-    }, []);
+    }, [isListening]);
 
     const stopListening = useCallback(async () => {
+        // Allow stopping even if not "listening" boolean if processing, but safe to just call stop
+        if (!isListening && !isProcessingRef.current) return;
+
         if (Capacitor.isNativePlatform()) {
             try {
                 await SpeechRecognition.stop();
@@ -149,15 +172,17 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
                 console.error("Native stop failed", e);
             } finally {
                 setIsListening(false);
-                // Clean up listeners
-                await SpeechRecognition.removeAllListeners();
+                isProcessingRef.current = false; // Ensure lock is released
+                try {
+                    await SpeechRecognition.removeAllListeners();
+                } catch (e) { console.error("Remove listeners failed", e) }
             }
         } else {
             if (webRecognitionRef.current) {
                 webRecognitionRef.current.stop();
             }
         }
-    }, []);
+    }, [isListening]);
 
     const reset = useCallback(() => {
         setTranscript('');

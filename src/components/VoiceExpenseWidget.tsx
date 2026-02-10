@@ -89,26 +89,28 @@ export const VoiceExpenseWidget = () => {
             return;
         }
 
-        setIsProcessing(true);
-        try {
-            await addTransaction(
-                {
-                    merchant: parsedNote, // utilizing merchant field for the quick description
-                    amount: amount,
-                    category: "General", // Will be auto-categorized by AI in AppContext if enabled
-                    status: "completed",
-                    type: "debit", // Assume debit for quick add
-                },
-                true // Enable auto-categorization
-            );
-            toast.success("Expense added!");
-            handleClose();
-        } catch (error) {
-            console.error(error);
-            toast.error("Failed to add expense.");
-        } finally {
+        // Optimistic UI: Close immediately
+        handleClose();
+        setIsProcessing(true); // Keep processing state for safety if we wanted to show it, but we are closing.
+
+        const promise = addTransaction(
+            {
+                merchant: parsedNote, // utilizing merchant field for the quick description
+                amount: amount,
+                category: "General", // Will be auto-categorized by AI in AppContext if enabled
+                status: "completed",
+                type: "debit", // Assume debit for quick add
+            },
+            true // Enable auto-categorization
+        ).finally(() => {
             setIsProcessing(false);
-        }
+        });
+
+        toast.promise(promise, {
+            loading: 'Adding expense...',
+            success: 'Expense added!',
+            error: 'Failed to add expense',
+        });
     };
 
     const handleClose = () => {
