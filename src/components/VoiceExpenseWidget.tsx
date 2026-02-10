@@ -152,8 +152,15 @@ export const VoiceExpenseWidget = () => {
                     }
                 }}
                 className="fixed z-50 cursor-pointer"
-                style={{ bottom: '1.5rem', right: '1.5rem', touchAction: 'none' }} // touchAction: none allows the drag gesture to override native scrolling
+                style={{ bottom: '1.5rem', right: '1.5rem', touchAction: 'none' }}
             >
+                {/* DEBUG: Remove after testing */}
+                <div className="absolute -top-8 right-0 bg-black/80 text-white text-[10px] p-1 rounded whitespace-nowrap">
+                    {isSupported ? 'Sup ' : 'NotSup '}
+                    {isListening ? 'List ' : 'Idle '}
+                    {error ? `Err: ${error.substring(0, 10)}` : ''}
+                </div>
+
                 <Button
                     size="icon"
                     className={cn(
