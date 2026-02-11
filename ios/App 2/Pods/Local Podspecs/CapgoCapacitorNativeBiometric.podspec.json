@@ -1,0 +1,19 @@
+{
+  "name": "CapgoCapacitorNativeBiometric",
+  "version": "7.1.13",
+  "summary": "This plugin gives access to the native biometric apis for android and iOS",
+  "license": "MIT",
+  "homepage": "https://github.com/Cap-go/capacitor-native-biometric",
+  "authors": "Martin Donadieu",
+  "source": {
+    "git": "https://github.com/Cap-go/capacitor-native-biometric",
+    "tag": "7.1.13"
+  },
+  "source_files": "ios/Sources/**/*.{swift,h,m,c,cc,mm,cpp}",
+  "platforms": {
+    "ios": "15.0"
+  },
+  "dependencies": {
+    "Capacitor": []
+  }
+}

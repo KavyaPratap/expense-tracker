@@ -1,0 +1,6 @@
+framework module CapacitorAppLauncher {
+  umbrella header "CapacitorAppLauncher-umbrella.h"
+
+  export *
+  module * { export * }
+}

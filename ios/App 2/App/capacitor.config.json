@@ -1,0 +1,16 @@
+{
+	"appId": "com.smartspend.app",
+	"appName": "SmartSpend",
+	"webDir": "out",
+	"server": {
+		"url": "https://expense-tracker-five-mu-77.vercel.app/",
+		"androidScheme": "https"
+	},
+	"packageClassList": [
+		"SpeechRecognition",
+		"AppPlugin",
+		"AppLauncherPlugin",
+		"LocalNotificationsPlugin",
+		"NativeBiometricPlugin"
+	]
+}
