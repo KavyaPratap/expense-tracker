@@ -79,13 +79,17 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
 
                 // Check/Request Permissions
                 console.log("Checking native permissions...");
+                toast.info("Checking permisssions...");
                 const { speechRecognition: permission } = await SpeechRecognition.checkPermissions();
                 console.log("Permission status:", permission);
+                toast.info(`Perms: ${permission}`);
 
                 if (permission !== 'granted') {
                     console.log("Requesting permissions...");
+                    toast.info("Requesting perms...");
                     const { speechRecognition: newPermission } = await SpeechRecognition.requestPermissions();
                     console.log("New permission status:", newPermission);
+                    toast.info(`New Perms: ${newPermission}`);
                     if (newPermission !== 'granted') {
                         const msg = "Microphone permission denied";
                         setError(msg);
@@ -105,6 +109,7 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
                     popup: false,
                 });
                 console.log("Native listener started");
+                toast.info("Listener started!");
 
                 // Add listeners
                 await SpeechRecognition.addListener('partialResults', (data: { matches: string[] }) => {
@@ -116,6 +121,7 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
 
                 await SpeechRecognition.addListener('listeningState', (data: { status: "started" | "stopped" }) => {
                     console.log("Listening state changed:", data);
+                    // toast.info(`State: ${data.status}`); // Optional: too noisy?
                     if (data.status === "stopped") {
                         setIsListening(false);
                         isProcessingRef.current = false; // Release lock when stopped

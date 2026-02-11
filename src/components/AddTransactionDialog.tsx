@@ -118,7 +118,7 @@ export const AddTransactionDialog = ({ addTransaction, categories }: AddTransact
           Add Transaction
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto w-full">
         <DialogHeader>
           <DialogTitle>Add Transaction</DialogTitle>
           <DialogDescription>Add a new income or expense transaction.</DialogDescription>

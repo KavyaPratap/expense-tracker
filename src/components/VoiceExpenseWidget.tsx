@@ -148,6 +148,7 @@ export const VoiceExpenseWidget = () => {
                 }}
                 onTap={() => {
                     if (!isDragging.current) {
+                        toast.info("Mic tapped");
                         isListening ? stopListening() : startListening();
                     }
                 }}
