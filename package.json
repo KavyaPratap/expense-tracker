@@ -16,6 +16,7 @@
     "@capacitor/core": "^8.0.2",
     "@capacitor/ios": "^8.0.2",
     "@capacitor/local-notifications": "^8.0.0",
+    "@capacitor/preferences": "^8.0.0",
     "@capgo/capacitor-native-biometric": "^8.3.7",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@hookform/resolvers": "^3.3.4",

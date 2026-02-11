@@ -78,9 +78,14 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
                 }
 
                 // Check/Request Permissions
+                console.log("Checking native permissions...");
                 const { speechRecognition: permission } = await SpeechRecognition.checkPermissions();
+                console.log("Permission status:", permission);
+
                 if (permission !== 'granted') {
+                    console.log("Requesting permissions...");
                     const { speechRecognition: newPermission } = await SpeechRecognition.requestPermissions();
+                    console.log("New permission status:", newPermission);
                     if (newPermission !== 'granted') {
                         const msg = "Microphone permission denied";
                         setError(msg);
@@ -91,21 +96,26 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
                 }
 
                 setIsListening(true);
+                toast.info("Starting voice input...");
 
                 // Start listening
+                console.log("Starting native listener...");
                 await SpeechRecognition.start({
                     partialResults: true,
                     popup: false,
                 });
+                console.log("Native listener started");
 
                 // Add listeners
                 await SpeechRecognition.addListener('partialResults', (data: { matches: string[] }) => {
+                    console.log("Partial results:", data);
                     if (data.matches && data.matches.length > 0) {
                         setInterimTranscript(data.matches[0]);
                     }
                 });
 
                 await SpeechRecognition.addListener('listeningState', (data: { status: "started" | "stopped" }) => {
+                    console.log("Listening state changed:", data);
                     if (data.status === "stopped") {
                         setIsListening(false);
                         isProcessingRef.current = false; // Release lock when stopped
