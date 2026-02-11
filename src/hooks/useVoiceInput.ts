@@ -124,8 +124,17 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
             }
         } else {
             // Web Logic
+            console.log("Starting Web Speech Recognition. Online status:", navigator.onLine);
+            if (!navigator.onLine) {
+                console.error("Browser reports offline.");
+                setError("Network error. Please check your internet connection.");
+                isProcessingRef.current = false;
+                return;
+            }
+
             const SpeechRecognitionConstructor = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
             if (!SpeechRecognitionConstructor) {
+                setError("Speech recognition not supported in this browser.");
                 isProcessingRef.current = false;
                 return;
             }
@@ -135,14 +144,39 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
             recognition.interimResults = true;
             recognition.lang = 'en-US';
 
-            recognition.onstart = () => setIsListening(true);
+            recognition.onstart = () => {
+                console.log("Speech recognition started.");
+                setIsListening(true);
+            };
             recognition.onend = () => {
                 setIsListening(false);
                 isProcessingRef.current = false;
             };
             recognition.onerror = (event: any) => {
+                console.error("Speech recognition error event:", event);
+
                 if (event.error === 'no-speech') return;
-                setError(event.error);
+
+                let errorMessage = event.error;
+                switch (event.error) {
+                    case 'network':
+                        errorMessage = "Network error. Please check your connection.";
+                        break;
+                    case 'not-allowed':
+                    case 'service-not-allowed':
+                        errorMessage = "Microphone access denied.";
+                        break;
+                    case 'aborted':
+                        errorMessage = null; // Ignore aborted errors
+                        break;
+                    default:
+                        errorMessage = `Voice Error: ${event.error}`;
+                }
+
+                if (errorMessage) {
+                    setError(errorMessage);
+                    toast.error(errorMessage);
+                }
                 setIsListening(false);
                 isProcessingRef.current = false;
             };
@@ -161,7 +195,12 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
             };
 
             webRecognitionRef.current = recognition;
-            recognition.start();
+            try {
+                recognition.start();
+            } catch (e) {
+                console.error("Failed to start web recognition:", e);
+                isProcessingRef.current = false;
+            }
         }
     }, [isListening]);
 
