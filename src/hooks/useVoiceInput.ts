@@ -62,34 +62,48 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
     const isProcessingRef = useRef(false);
 
     const startListening = useCallback(async () => {
-        if (isProcessingRef.current || isListening) return;
+        if (isProcessingRef.current) {
+            toast.warning("Voice engine is busy, please wait...");
+            return;
+        }
+        if (isListening) return;
+
         isProcessingRef.current = true;
         setError(null);
         setTranscript('');
 
         if (Capacitor.isNativePlatform()) {
             try {
-                // Ensure clean state before starting
+                // Ensure clean state before starting with a timeout
+                // If the previous instance is stuck stopping, we don't want to hang forever.
                 try {
-                    await SpeechRecognition.removeAllListeners();
-                    await SpeechRecognition.stop(); // Try to stop just in case
+                    const cleanupPromise = (async () => {
+                        await SpeechRecognition.removeAllListeners();
+                        await SpeechRecognition.stop();
+                    })();
+
+                    // Race against a 1s timeout
+                    await Promise.race([
+                        cleanupPromise,
+                        new Promise((_, reject) => setTimeout(() => reject(new Error("Cleanup timeout")), 1000))
+                    ]);
                 } catch (e) {
-                    // Ignore errors during cleanup
+                    console.warn("Cleanup timed out or failed, proceeding anyway:", e);
+                    // We proceed because sometimes the plugin is just unresponsive to stop() but ready to start()
                 }
 
                 // Check/Request Permissions
                 console.log("Checking native permissions...");
-                toast.info("Checking permisssions...");
+                // toast.info("Checking permisssions..."); 
                 const { speechRecognition: permission } = await SpeechRecognition.checkPermissions();
                 console.log("Permission status:", permission);
-                toast.info(`Perms: ${permission}`);
 
                 if (permission !== 'granted') {
                     console.log("Requesting permissions...");
-                    toast.info("Requesting perms...");
+                    // toast.info("Requesting perms...");
                     const { speechRecognition: newPermission } = await SpeechRecognition.requestPermissions();
                     console.log("New permission status:", newPermission);
-                    toast.info(`New Perms: ${newPermission}`);
+
                     if (newPermission !== 'granted') {
                         const msg = "Microphone permission denied";
                         setError(msg);
@@ -100,7 +114,7 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
                 }
 
                 setIsListening(true);
-                toast.info("Starting voice input...");
+                toast.info("Listening...");
 
                 // Start listening
                 console.log("Starting native listener...");
@@ -109,7 +123,6 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
                     popup: false,
                 });
                 console.log("Native listener started");
-                toast.info("Listener started!");
 
                 // Add listeners
                 await SpeechRecognition.addListener('partialResults', (data: { matches: string[] }) => {
@@ -121,10 +134,10 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
 
                 await SpeechRecognition.addListener('listeningState', (data: { status: "started" | "stopped" }) => {
                     console.log("Listening state changed:", data);
-                    // toast.info(`State: ${data.status}`); // Optional: too noisy?
                     if (data.status === "stopped") {
                         setIsListening(false);
-                        isProcessingRef.current = false; // Release lock when stopped
+                        // Only release lock if we are truly stopped and not just restarting
+                        isProcessingRef.current = false;
                     } else {
                         setIsListening(true);
                     }
@@ -226,14 +239,19 @@ export const useVoiceInput = (): VoiceInputState & VoiceInputActions => {
 
         if (Capacitor.isNativePlatform()) {
             try {
-                await SpeechRecognition.stop();
+                // Race stop against a 1s timeout
+                await Promise.race([
+                    SpeechRecognition.stop(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error("Stop mechanism timeout")), 1000))
+                ]);
             } catch (e) {
-                console.error("Native stop failed", e);
+                console.error("Native stop failed or timed out", e);
             } finally {
                 setIsListening(false);
                 isProcessingRef.current = false; // Ensure lock is released
                 try {
-                    await SpeechRecognition.removeAllListeners();
+                    // Best effort cleanup, don't await/block for too long
+                    SpeechRecognition.removeAllListeners().catch(e => console.warn("Remove listeners warning", e));
                 } catch (e) { console.error("Remove listeners failed", e) }
             }
         } else {
