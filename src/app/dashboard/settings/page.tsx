@@ -26,6 +26,9 @@ import type {
 } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
@@ -239,7 +242,7 @@ const Settings = () => {
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     if (!transactions || transactions.length === 0) {
       toast.error('No transactions to export.');
       return;
@@ -248,17 +251,41 @@ const Settings = () => {
       ['Date', 'Merchant', 'Amount', 'Type', 'Category', 'Status', 'Note'].join(','),
       ...transactions.map((t) => [t.date, `"${t.merchant.replace(/"/g, '""')}"`, t.amount, t.type, t.category, t.status, `"${(t.note || '').replace(/"/g, '""')}"`].join(','))
     ].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `smartspend-expenses-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('CSV exported successfully');
+
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const fileName = `smartspend-expenses-${new Date().toISOString().split('T')[0]}.csv`;
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: csv,
+          directory: Directory.Cache,
+          encoding: Encoding.UTF8,
+        });
+
+        await Share.share({
+          title: 'Export Expenses',
+          text: 'Here is your expense report CSV.',
+          url: result.uri,
+          dialogTitle: 'Share Expenses CSV',
+        });
+        toast.success('Shared CSV successfully');
+      } catch (e: any) {
+        console.error('Export failed', e);
+        toast.error('Export failed: ' + e.message);
+      }
+    } else {
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `smartspend-expenses-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('CSV exported successfully');
+    }
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!transactions || transactions.length === 0) {
       toast.error('No transactions to export.');
       return;
@@ -273,8 +300,33 @@ const Settings = () => {
         doc.text('Transaction Report', data.settings.margin.left, 20);
       }
     });
-    doc.save(`smartspend-expenses-${new Date().toISOString().split('T')[0]}.pdf`);
-    toast.success('PDF exported successfully');
+
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const fileName = `smartspend-expenses-${new Date().toISOString().split('T')[0]}.pdf`;
+        const pdfBase64 = doc.output('datauristring').split(',')[1];
+
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: pdfBase64,
+          directory: Directory.Cache,
+        });
+
+        await Share.share({
+          title: 'Export Expenses PDF',
+          text: 'Here is your expense report PDF.',
+          url: result.uri,
+          dialogTitle: 'Share Expenses PDF',
+        });
+        toast.success('Shared PDF successfully');
+      } catch (e: any) {
+        console.error('Export PDF failed', e);
+        toast.error('Export failed: ' + e.message);
+      }
+    } else {
+      doc.save(`smartspend-expenses-${new Date().toISOString().split('T')[0]}.pdf`);
+      toast.success('PDF exported successfully');
+    }
   };
 
   const handleThemeChange = (isDark: boolean) => {
