@@ -32,8 +32,8 @@ interface ImportUploadZoneProps {
 const FILE_TYPE_INFO = [
     { ext: 'CSV', icon: FileSpreadsheet, color: 'text-green-500', maxMB: 2 },
     { ext: 'Excel', icon: FileSpreadsheet, color: 'text-blue-500', maxMB: 2 },
-    { ext: 'PDF', icon: FileText, color: 'text-red-500', maxMB: 10 },
-    { ext: 'Image', icon: Image, color: 'text-purple-500', maxMB: 5 },
+    { ext: 'PDF', icon: FileText, color: 'text-red-500', maxMB: 4 },
+    { ext: 'Image', icon: Image, color: 'text-purple-500', maxMB: 4 },
 ];
 
 const ACCEPT =

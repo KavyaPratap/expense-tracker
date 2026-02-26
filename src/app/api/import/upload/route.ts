@@ -16,9 +16,9 @@ const ALLOWED_MIMES = new Set([
 ]);
 
 const SIZE_LIMITS: Record<string, number> = {
-    'image/jpeg': 5 * 1024 * 1024,
-    'image/png': 5 * 1024 * 1024,
-    'application/pdf': 10 * 1024 * 1024,
+    'image/jpeg': 4 * 1024 * 1024,
+    'image/png': 4 * 1024 * 1024,
+    'application/pdf': 4 * 1024 * 1024,
     'text/csv': 2 * 1024 * 1024,
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 2 * 1024 * 1024,
 };
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
         const maxSize = SIZE_LIMITS[mimeType] || 5 * 1024 * 1024;
         if (buffer.length > maxSize) {
             return NextResponse.json(
-                { error: `File too large. Max ${Math.round(maxSize / 1024 / 1024)}MB for ${mimeType}` },
+                { error: `File is too large (${Math.round(buffer.length / 1024 / 1024 * 10) / 10}MB). Maximum supported size is ${maxSize / 1024 / 1024}MB due to platform limits.` },
                 { status: 400 }
             );
         }

@@ -6,7 +6,7 @@
 
 import { parseCSV, parseExcel, parsePDF, type ParseResult } from './parsers';
 import { detectTemplate, parseWithTemplate, type ExtractedTransaction } from './templates';
-import { extractWithGroq } from './groq';
+import { extractWithGroq, extractImageWithGroq } from './groq';
 import { convertAmount } from '@/lib/currency';
 import { formatDate } from '@/lib/utils';
 import {
@@ -191,13 +191,21 @@ async function executePipeline(input: PipelineInput): Promise<PipelineResult> {
                 throw new Error(`Daily AI limit exceeded (${Math.round(todayTokens / 1000)}k / ${MAX_DAILY_TOKENS / 1000}k).`);
             }
 
-            // Pre-process text for better AI extraction
-            let aiInputText = parseResult.rawText;
-
-            if (!isImage && aiInputText.trim().length > 0) {
+            if (isImage) {
+                try {
+                    const base64 = input.fileBuffer.toString('base64');
+                    const result = await extractImageWithGroq(base64, groqKey, input.mimeType);
+                    extracted = result.transactions;
+                    aiTokensUsed = result.tokensUsed;
+                    extractionSource = 'ai_image';
+                } catch (error) {
+                    console.error('[pipeline] Groq vision extraction failed:', error);
+                    throw new Error(`Vision extraction error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                }
+            } else {
+                // Pre-process text for better AI extraction
+                let aiInputText = parseResult.rawText;
                 const lines = aiInputText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-
-                // Robust date pattern to handle DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD
                 const datePattern = /\d{1,4}[-\/]\d{1,2}[-\/]\d{1,4}/;
                 const transactionLines = lines.filter(line => datePattern.test(line));
 
@@ -205,8 +213,7 @@ async function executePipeline(input: PipelineInput): Promise<PipelineResult> {
                     aiInputText = transactionLines.join('\n');
                 }
 
-                // Execute Groq Extraction
-                if (!isImage && aiInputText.trim().length > 0) {
+                if (aiInputText.trim().length > 0) {
                     try {
                         const result = await extractWithGroq(aiInputText, groqKey);
                         extracted = result.transactions;
@@ -216,155 +223,121 @@ async function executePipeline(input: PipelineInput): Promise<PipelineResult> {
                         console.error('[pipeline] Groq extraction failed:', error);
                         throw new Error(`AI extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
                     }
-                } else if (isImage) {
-                    // Gemini Vision was removed. If you need image support, we can add a Groq vision model in future if supported.
-                    throw new Error('Image extraction is currently disabled as the AI provider is being reconfigured.');
                 }
             }
-
-            if (extracted.length === 0) {
-                throw new Error('No transactions could be extracted. The file may be empty or encrypted.');
-            }
-
-            // ── Step 5: Validation ──
-            const { valid, invalid } = validateTransactions(extracted);
-
-            if (valid.length === 0) {
-                throw new Error(`The AI found ${extracted.length} items but none passed security validation. Please check your data.`);
-            }
-
-            // ── Step 6: Load merchant map + existing hashes ──
-            const { data: merchantMapData } = await adminSupabase
-                .from('user_merchant_map')
-                .select('*')
-                .eq('user_id', input.userId);
-
-            // Normalize the merchant map internally (lowercase & trim)
-            const merchantMap: UserMerchantMap[] = (merchantMapData || []).map(m => ({
-                ...m,
-                merchant: m.merchant.toLowerCase().trim()
-            }));
-
-            const { data: existingTxData } = await adminSupabase
-                .from('transactions')
-                .select('unique_hash')
-                .eq('user_id', input.userId)
-                .not('unique_hash', 'is', null);
-            const existingHashes = new Set(
-                (existingTxData || []).map((t: { unique_hash: string }) => t.unique_hash)
-            );
-
-            // Also load hashes from other pending import jobs
-            const { data: pendingImportTxs } = await adminSupabase
-                .from('import_transactions')
-                .select('unique_hash')
-                .eq('user_id', input.userId);
-            (pendingImportTxs || []).forEach((t: { unique_hash: string }) => {
-                if (t.unique_hash) existingHashes.add(t.unique_hash);
-            });
-
-            // ── Step 7: Score confidence + compute hashes + detect duplicates ──
-            const transactionsWithMeta = valid.map((tx, index) => {
-                const hash = computeHash(input.userId, tx);
-                const confidence = computeConfidence(tx, extractionSource, merchantMap);
-
-                // Apply merchant map category if available (normalized match)
-                let category = tx.category;
-                const normalizedMerchant = tx.merchant.toLowerCase().trim();
-                if (!category) {
-                    const mapped = merchantMap.find(
-                        (m) => m.merchant === normalizedMerchant
-                    );
-                    if (mapped) category = mapped.category;
-                }
-
-                return { tx, hash, confidence, category, index };
-            });
-
-            const duplicateIndices = detectDuplicates(
-                transactionsWithMeta.map((t) => ({ hash: t.hash, index: t.index })),
-                existingHashes
-            );
-
-            // Also run fuzzy check for near-duplicates
-            const { data: recentTxData } = await adminSupabase
-                .from('transactions')
-                .select('date, amount, merchant')
-                .eq('user_id', input.userId)
-                .order('date', { ascending: false })
-                .limit(500);
-            const recentTransactions = recentTxData || [];
-
-            // ── Step 8: Insert into staging table ──
-            const stagingRows = transactionsWithMeta.map((t) => {
-                const isFuzzyDup =
-                    !duplicateIndices.has(t.index) &&
-                    fuzzyDuplicateCheck(t.tx, recentTransactions);
-
-                // Convert amount if source currency differs from app currency
-                const finalAmount = sourceCurrency !== appCurrency
-                    ? convertAmount(t.tx.amount, sourceCurrency, appCurrency)
-                    : t.tx.amount;
-
-                return {
-                    job_id: input.jobId,
-                    user_id: input.userId,
-                    amount: finalAmount,
-                    date: formatDate(t.tx.date), // Ensure date is formatted as "MMM d, yyyy"
-                    merchant: t.tx.merchant,
-                    note: t.tx.note || null,
-                    category: t.category || null,
-                    confidence: t.confidence,
-                    unique_hash: t.hash,
-                    is_duplicate: duplicateIndices.has(t.index) || isFuzzyDup,
-                    is_selected: !duplicateIndices.has(t.index) && !isFuzzyDup,
-                    raw_payload: {
-                        source: extractionSource,
-                        originalAmount: t.tx.amount,
-                        originalCurrency: sourceCurrency,
-                        converted: sourceCurrency !== appCurrency
-                    },
-                };
-            });
-
-            // Batch insert (Supabase handles up to 1000 per call)
-            const batchSize = 500;
-            for (let i = 0; i < stagingRows.length; i += batchSize) {
-                const batch = stagingRows.slice(i, i + batchSize);
-                const { error: insertError } = await adminSupabase
-                    .from('import_transactions')
-                    .insert(batch);
-                if (insertError) {
-                    console.error('Staging insert error:', insertError);
-                    throw new Error(`Failed to save extracted transactions: ${insertError.message}`);
-                }
-            }
-
-            // ── Step 9: Update job as ready ──
-            const processingTimeMs = Date.now() - startTime;
-            const aiCostEstimate = aiTokensUsed * 0.000001; // rough estimate
-
-            await adminSupabase
-                .from('import_jobs')
-                .update({
-                    status: 'ready',
-                    total_rows: extracted.length,
-                    processed_rows: valid.length,
-                    ai_tokens_used: aiTokensUsed,
-                    ai_cost_estimate: aiCostEstimate,
-                    processing_time_ms: processingTimeMs,
-                })
-                .eq('id', input.jobId);
-
-            return {
-                success: true,
-                totalRows: extracted.length,
-                processedRows: valid.length,
-                aiTokensUsed,
-                aiCostEstimate,
-                processingTimeMs,
-            };
         }
+
+        if (extracted.length === 0) {
+            throw new Error('No transactions could be extracted. The file may be empty or encrypted.');
+        }
+
+        // ── Step 5: Validation ──
+        const { valid } = validateTransactions(extracted);
+
+        if (valid.length === 0) {
+            throw new Error(`Found ${extracted.length} items but none passed security validation. Please check your data.`);
+        }
+
+        // ── Step 6: Load merchant map + existing hashes ──
+        const { data: merchantMapData } = await adminSupabase
+            .from('user_merchant_map')
+            .select('*')
+            .eq('user_id', input.userId);
+
+        const merchantMap: UserMerchantMap[] = (merchantMapData || []).map(m => ({
+            ...m,
+            merchant: m.merchant.toLowerCase().trim()
+        }));
+
+        const { data: existingTxData } = await adminSupabase
+            .from('transactions')
+            .select('unique_hash')
+            .eq('user_id', input.userId)
+            .not('unique_hash', 'is', null);
+        const existingHashes = new Set((existingTxData || []).map((t: { unique_hash: string }) => t.unique_hash));
+
+        const { data: pendingImportTxs } = await adminSupabase
+            .from('import_transactions')
+            .select('unique_hash')
+            .eq('user_id', input.userId);
+        (pendingImportTxs || []).forEach((t: { unique_hash: string }) => { if (t.unique_hash) existingHashes.add(t.unique_hash); });
+
+        // ── Step 7: Score + hash + duplicates ──
+        const transactionsWithMeta = valid.map((tx, index) => {
+            const hash = computeHash(input.userId, tx);
+            const confidence = computeConfidence(tx, extractionSource, merchantMap);
+            let category = tx.category;
+            const normalizedMerchant = tx.merchant.toLowerCase().trim();
+            if (!category) {
+                const mapped = merchantMap.find(m => m.merchant === normalizedMerchant);
+                if (mapped) category = mapped.category;
+            }
+            return { tx, hash, confidence, category, index };
+        });
+
+        const duplicateIndices = detectDuplicates(transactionsWithMeta.map(t => ({ hash: t.hash, index: t.index })), existingHashes);
+
+        const { data: recentTxData } = await adminSupabase
+            .from('transactions')
+            .select('date, amount, merchant')
+            .eq('user_id', input.userId)
+            .order('date', { ascending: false })
+            .limit(500);
+        const recentTransactions = recentTxData || [];
+
+        // ── Step 8: Insert staging ──
+        const stagingRows = transactionsWithMeta.map((t) => {
+            const isFuzzyDup = !duplicateIndices.has(t.index) && fuzzyDuplicateCheck(t.tx, recentTransactions);
+            const finalAmount = sourceCurrency !== appCurrency ? convertAmount(t.tx.amount, sourceCurrency, appCurrency) : t.tx.amount;
+            return {
+                job_id: input.jobId,
+                user_id: input.userId,
+                amount: finalAmount,
+                date: formatDate(t.tx.date),
+                merchant: t.tx.merchant,
+                note: t.tx.note || null,
+                category: t.category || null,
+                confidence: t.confidence,
+                unique_hash: t.hash,
+                is_duplicate: duplicateIndices.has(t.index) || isFuzzyDup,
+                is_selected: !duplicateIndices.has(t.index) && !isFuzzyDup,
+                raw_payload: {
+                    source: extractionSource,
+                    originalAmount: t.tx.amount,
+                    originalCurrency: sourceCurrency,
+                    converted: sourceCurrency !== appCurrency
+                },
+            };
+        });
+
+        const batchSize = 500;
+        for (let i = 0; i < stagingRows.length; i += batchSize) {
+            const batch = stagingRows.slice(i, i + batchSize);
+            const { error: insertError } = await adminSupabase.from('import_transactions').insert(batch);
+            if (insertError) throw new Error(`Failed to save: ${insertError.message}`);
+        }
+
+        // ── Step 9: Ready ──
+        const processingTimeMs = Date.now() - startTime;
+        const aiCostEstimate = aiTokensUsed * 0.000001;
+
+        await adminSupabase.from('import_jobs').update({
+            status: 'ready',
+            total_rows: extracted.length,
+            processed_rows: valid.length,
+            ai_tokens_used: aiTokensUsed,
+            ai_cost_estimate: aiCostEstimate,
+            processing_time_ms: processingTimeMs,
+        }).eq('id', input.jobId);
+
+        return {
+            success: true,
+            totalRows: extracted.length,
+            processedRows: valid.length,
+            aiTokensUsed,
+            aiCostEstimate,
+            processingTimeMs,
+        };
     } catch (error) {
         const processingTimeMs = Date.now() - startTime;
         const errorMsg = error instanceof Error ? error.message : 'Unknown pipeline error';

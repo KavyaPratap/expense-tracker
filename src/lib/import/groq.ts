@@ -15,6 +15,7 @@ export interface GroqExtractionResult {
 }
 
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
+const GROQ_VISION_MODEL = 'llama-3.2-11b-vision-preview';
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 const EXTRACTION_PROMPT = `You are a transaction extraction engine. Extract all financial transactions from the provided bank statement data.
@@ -115,6 +116,77 @@ export async function extractWithGroq(
                 t.merchant.trim().length > 0
         )
         .map((t) => ({
+            date: String(t.date || '').trim(),
+            amount: Math.abs(Number(t.amount)),
+            merchant: String(t.merchant || '').trim().slice(0, 200),
+            note: String(t.note || '').trim().slice(0, 500),
+            category: t.category ? String(t.category).trim() : undefined,
+        }));
+
+    return { transactions, tokensUsed };
+}
+
+/**
+ * Extract transactions from image using Groq Vision API
+ */
+export async function extractImageWithGroq(
+    base64Image: string,
+    apiKey: string,
+    mimeType: string = 'image/jpeg'
+): Promise<GroqExtractionResult> {
+    const response = await fetch(GROQ_API_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+            model: GROQ_VISION_MODEL,
+            messages: [
+                { role: 'system', content: EXTRACTION_PROMPT },
+                {
+                    role: 'user',
+                    content: [
+                        { type: 'text', text: 'Extract all transactions from this image.' },
+                        {
+                            type: 'image_url',
+                            image_url: {
+                                url: `data:${mimeType};base64,${base64Image}`,
+                            },
+                        },
+                    ],
+                },
+            ],
+            temperature: 0,
+            stream: false,
+            response_format: { type: 'json_object' },
+        }),
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Groq Vision API error (${response.status}): ${errorText}`);
+    }
+
+    const data = await response.json();
+    const responseText = data.choices[0]?.message?.content || '[]';
+    const tokensUsed = data.usage?.total_tokens || 0;
+
+    let transactions: GroqExtractionResult['transactions'] = [];
+    try {
+        const parsed = JSON.parse(responseText);
+        transactions = Array.isArray(parsed) ? parsed : (parsed.transactions || Object.values(parsed).find(v => Array.isArray(v)) || []);
+    } catch {
+        const match = responseText.match(/\[[\s\S]*\]/);
+        if (match) {
+            try { transactions = JSON.parse(match[0]); } catch { transactions = []; }
+        }
+    }
+
+    // Clean & validate each transaction
+    transactions = transactions
+        .filter(t => t && typeof t.amount === 'number' && t.amount > 0 && typeof t.merchant === 'string')
+        .map(t => ({
             date: String(t.date || '').trim(),
             amount: Math.abs(Number(t.amount)),
             merchant: String(t.merchant || '').trim().slice(0, 200),
