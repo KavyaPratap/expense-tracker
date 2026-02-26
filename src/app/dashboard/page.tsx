@@ -114,15 +114,17 @@ const Dashboard = () => {
     const endOfThisWeek = endOfWeek(today, { weekStartsOn: 1 });
     tx.forEach(transaction => {
       try {
-        // Robust date parsing: try multiple formats
         let transactionDate: Date;
-        if (transaction.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          transactionDate = parse(transaction.date, 'yyyy-MM-dd', new Date());
+        const cleanDate = transaction.date.trim();
+        if (cleanDate.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
+          transactionDate = parse(cleanDate, 'yyyy-MM-dd', new Date());
+        } else if (cleanDate.match(/^\w{3}\s\d{1,2},\s\d{4}$/)) {
+          transactionDate = parse(cleanDate, 'MMM d, yyyy', new Date());
         } else {
-          transactionDate = parse(transaction.date, 'MMM d, yyyy', new Date());
+          transactionDate = new Date(cleanDate);
         }
 
-        if (isNaN(transactionDate.getTime())) throw new Error("Invalid date");
+        if (isNaN(transactionDate.getTime())) return;
 
         if (isWithinInterval(transactionDate, { start: sevenDaysAgo, end: today })) {
           const weekDayEntry = weeklyData.find(d => d.fullDate === format(transactionDate, 'MMM d, yyyy'));
@@ -160,11 +162,16 @@ const Dashboard = () => {
         if (t.type !== "debit") return false;
         try {
           let transactionDate: Date;
-          if (t.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            transactionDate = parse(t.date, 'yyyy-MM-dd', new Date());
+          const cleanDate = t.date.trim();
+          if (cleanDate.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
+            transactionDate = parse(cleanDate, 'yyyy-MM-dd', new Date());
+          } else if (cleanDate.match(/^\w{3}\s\d{1,2},\s\d{4}$/)) {
+            transactionDate = parse(cleanDate, 'MMM d, yyyy', new Date());
           } else {
-            transactionDate = parse(t.date, 'MMM d, yyyy', new Date());
+            transactionDate = new Date(cleanDate);
           }
+
+          if (isNaN(transactionDate.getTime())) return false;
           return getMonth(transactionDate) === currentMonth && getYear(transactionDate) === currentYear;
         } catch (e) {
           return false;

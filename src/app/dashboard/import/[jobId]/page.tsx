@@ -7,7 +7,7 @@ import { ImportPreviewRow } from '@/components/ImportPreviewRow';
 import { useSupabase } from '@/lib/supabase/provider';
 import { useCollection, useDoc } from '@/hooks/use-supabase';
 import type { ImportJob, ImportTransaction, Category } from '@/lib/types';
-import { getCurrencySymbol } from '@/lib/currency';
+import { getCurrencySymbol, CurrencyIcon } from '@/lib/currency';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -185,6 +185,7 @@ export default function ImportPreviewPage({
 
             toast.success(`${data.committed} transactions imported!`);
             mutate(`import_jobs?user_id=eq.${user.id}&order=created_at.desc`);
+            mutate(`transactions?user_id=eq.${user.id}&order=date.desc`);
             router.push('/dashboard/import');
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Commit failed');
@@ -259,8 +260,9 @@ export default function ImportPreviewPage({
                                 </span>
                             )}
                         </div>
-                        <div className="font-bold text-lg">
-                            {currencySymbol}{summary.totalAmount.toFixed(2)}
+                        <div className="font-bold text-lg flex items-center gap-1">
+                            <CurrencyIcon currency={settings?.currency} className="h-5 w-5" />
+                            {summary.totalAmount.toFixed(2)}
                         </div>
                     </div>
                 </CardContent>

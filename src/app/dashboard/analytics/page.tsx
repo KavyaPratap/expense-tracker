@@ -72,10 +72,13 @@ const Analytics = () => {
     safeExpenses.forEach((t) => {
       try {
         let transactionDate: Date;
-        if (t.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          transactionDate = parse(t.date, 'yyyy-MM-dd', new Date());
+        const cleanDate = t.date.trim();
+        if (cleanDate.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
+          transactionDate = parse(cleanDate, 'yyyy-MM-dd', new Date());
+        } else if (cleanDate.match(/^\w{3}\s\d{1,2},\s\d{4}$/)) {
+          transactionDate = parse(cleanDate, 'MMM d, yyyy', new Date());
         } else {
-          transactionDate = parse(t.date, 'MMM d, yyyy', new Date());
+          transactionDate = new Date(cleanDate);
         }
 
         const transactionMonth = getMonth(transactionDate);
@@ -150,10 +153,13 @@ const Analytics = () => {
     safeExpenses.forEach((t) => {
       try {
         let transactionDate: Date;
-        if (t.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          transactionDate = parse(t.date, 'yyyy-MM-dd', new Date());
+        const cleanDate = t.date.trim();
+        if (cleanDate.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
+          transactionDate = parse(cleanDate, 'yyyy-MM-dd', new Date());
+        } else if (cleanDate.match(/^\w{3}\s\d{1,2},\s\d{4}$/)) {
+          transactionDate = parse(cleanDate, 'MMM d, yyyy', new Date());
         } else {
-          transactionDate = parse(t.date, 'MMM d, yyyy', new Date());
+          transactionDate = new Date(cleanDate);
         }
 
         const monthKey = format(transactionDate, 'MMM yyyy');

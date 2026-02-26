@@ -57,6 +57,16 @@ function timeAgo(dateStr: string): string {
     return `${Math.floor(hours / 24)}d ago`;
 }
 
+function getFriendlyError(msg: string) {
+    const lowMsg = msg.toLowerCase();
+    if (lowMsg.includes('daily ai limit')) return 'Daily AI processing limit reached. Please try again tomorrow.';
+    if (lowMsg.includes('no transactions could be extracted')) return 'We couldn’t find any transactions in this file. Please ensure it’s a valid bank statement.';
+    if (lowMsg.includes('unsupported file type')) return 'This file type is not supported. Please use PDF, CSV, or Excel.';
+    if (lowMsg.includes('timeout')) return 'The file is taking too long to process. Try a smaller file or checking your connection.';
+    if (lowMsg.includes('encrypted') || lowMsg.includes('password')) return 'The file is password protected or encrypted and cannot be read.';
+    return 'An error occurred while reading the file. Please try another format or a different file.';
+}
+
 export const ImportJobCard = ({ job }: ImportJobCardProps) => {
     const config = STATUS_CONFIG[job.status] || STATUS_CONFIG.queued;
     const StatusIcon = config.icon;
@@ -171,7 +181,9 @@ export const ImportJobCard = ({ job }: ImportJobCardProps) => {
 
                 {/* Error message */}
                 {job.status === 'failed' && job.error_message && (
-                    <p className="mt-2 text-xs text-destructive truncate">{job.error_message}</p>
+                    <p className="mt-2 text-xs text-destructive italic border-l-2 border-destructive/30 pl-2">
+                        {getFriendlyError(job.error_message)}
+                    </p>
                 )}
             </CardContent>
         </Card>

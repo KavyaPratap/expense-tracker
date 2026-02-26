@@ -12,8 +12,9 @@ import {
 } from '@/components/ui/select';
 import { AlertCircle, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ImportTransaction, Category } from '@/lib/types';
+import { Category, ImportTransaction } from '@/lib/types';
 import { useState } from 'react';
+import { CurrencyIcon } from '@/lib/currency';
 
 interface ImportPreviewRowProps {
     tx: ImportTransaction;
@@ -108,11 +109,12 @@ export const ImportPreviewRow = ({
                             />
                         ) : (
                             <p
-                                className="font-bold text-sm cursor-pointer hover:text-primary transition-colors shrink-0"
+                                className="font-bold text-sm cursor-pointer hover:text-primary transition-colors shrink-0 flex items-center"
                                 onClick={() => setIsEditing('amount')}
                                 title="Click to edit"
                             >
-                                {currencySymbol}{tx.amount.toFixed(2)}
+                                <CurrencyIcon currency={tx.raw_payload?.originalCurrency as string || 'INR'} className="h-4 w-4 mr-0.5" />
+                                {tx.amount.toFixed(2)}
                             </p>
                         )}
                     </div>
