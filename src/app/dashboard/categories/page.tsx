@@ -46,15 +46,15 @@ const Categories = () => {
   const supabase = createClient();
 
   const { data: categories } = useCollection<Category>(
-    user ? `categories?user_id=eq.${user.id}` : null
+    user ? `categories?select=*&user_id=eq.${user.id}` : null
   );
 
   const { data: transactions } = useCollection<Transaction>(
-    user ? `transactions?user_id=eq.${user.id}` : null
+    user ? `transactions?select=*&user_id=eq.${user.id}` : null
   );
 
   const { data: settings } = useDoc<Settings>(
-    user ? `settings?user_id=eq.${user.id}` : null
+    user ? `settings?select=*&user_id=eq.${user.id}` : null
   );
 
   const currencySymbol = useMemo(

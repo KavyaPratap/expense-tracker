@@ -35,11 +35,11 @@ export const BudgetNotifier = () => {
   );
 
   const { data: expenses } = useCollection<Transaction>(
-    user ? `transactions?user_id=eq.${user.id}` : null
+    user ? `transactions?select=*&user_id=eq.${user.id}` : null
   );
 
   const { data: settings } = useDoc<Settings>(
-    user ? `settings?user_id=eq.${user.id}` : null
+    user ? `settings?select=*&user_id=eq.${user.id}` : null
   );
 
   const currencySymbol = useMemo(

@@ -101,6 +101,13 @@ export function parseExcel(buffer: Buffer): ParseResult {
  * Returns text only — rows/headers must be extracted by template or AI
  */
 export async function parsePDF(buffer: Buffer): Promise<ParseResult> {
+    // Polyfill for Node.js 21+ PDF.js issue where DOMMatrix is missing in serverless environments
+    if (typeof global !== 'undefined' && typeof (global as any).DOMMatrix === 'undefined') {
+        (global as any).DOMMatrix = class DOMMatrix {
+            constructor() { return [1, 0, 0, 1, 0, 0]; }
+        };
+    }
+
     // pdf-parse is CJS, dynamic import for compatibility
     const pdfModule = await import('pdf-parse') as any;
     const parseFn = pdfModule.default || pdfModule;

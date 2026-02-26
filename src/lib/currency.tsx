@@ -17,40 +17,40 @@ import React from 'react';
 
 const RupeeIcon = ({ className, strokeWidth = 2.5 }: { className?: string; strokeWidth?: number }) => (
     <svg
-    xmlns= "http://www.w3.org/2000/svg"
-viewBox = "0 0 24 24"
-fill = "none"
-stroke = "currentColor"
-strokeWidth = { strokeWidth }
-strokeLinecap = "round"
-strokeLinejoin = "round"
-className = { className }
-style = {{ display: 'inline-block', verticalAlign: 'middle' }}
-  >
-    <path d="M6 3h12" />
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={className}
+        style={{ display: 'inline-block', verticalAlign: 'middle' }}
+    >
+        <path d="M6 3h12" />
         <path d="M6 8h12" />
-            <path d="m6 13 8.5 8" />
-                <path d="M6 13h3" />
-                    <path d="M9 13c6.667 0 6.667-10 0-10" />
-                        </svg>
+        <path d="m6 13 8.5 8" />
+        <path d="M6 13h3" />
+        <path d="M9 13c6.667 0 6.667-10 0-10" />
+    </svg>
 );
 
 export const CurrencyIcon = ({
-    currency = "USD",
+    currency = "INR",
     className = "w-4 h-4"
 }: {
     currency?: string;
     className?: string
 }) => {
     switch (currency) {
-        case 'EUR': return <Euro className={ className } />;
-        case 'GBP': return <PoundSterling className={ className } />;
-        case 'INR': return <RupeeIcon className={ className } />;
-        default: return <DollarSign className={ className } />;
+        case 'EUR': return <Euro className={className} />;
+        case 'GBP': return <PoundSterling className={className} />;
+        case 'INR': return <RupeeIcon className={className} />;
+        default: return <DollarSign className={className} />;
     }
 };
 
-export const getCurrencySymbol = (currency: Settings['currency'] | string = "USD") => {
+export const getCurrencySymbol = (currency: Settings['currency'] | string = "INR") => {
     const symbols: Record<string, string> = {
         USD: "$",
         EUR: "€",

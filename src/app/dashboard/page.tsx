@@ -62,19 +62,19 @@ const Dashboard = () => {
   const user = session?.user;
 
   const { data: transactions } = useCollection<Transaction>(
-    user ? `transactions?user_id=eq.${user.id}` : null
+    user ? `transactions?select=*&user_id=eq.${user.id}` : null
   );
 
   const { data: categories } = useCollection<Category>(
-    user ? `categories?user_id=eq.${user.id}` : null
+    user ? `categories?select=*&user_id=eq.${user.id}` : null
   );
 
   const { data: settings } = useDoc<Settings>(
-    user ? `settings?user_id=eq.${user.id}` : null
+    user ? `settings?select=*&user_id=eq.${user.id}` : null
   );
 
   const { data: budgetSettings } = useDoc<BudgetSettings>(
-    user ? `budgets?user_id=eq.${user.id}` : null
+    user ? `budgets?select=*&user_id=eq.${user.id}` : null
   );
 
   const currencySymbol = useMemo(
@@ -111,20 +111,24 @@ const Dashboard = () => {
     const startOfThisWeek = startOfWeek(today, { weekStartsOn: 1 });
     const endOfThisWeek = endOfWeek(today, { weekStartsOn: 1 });
     tx.forEach(transaction => {
-      if (transaction.type === 'debit') {
-        try {
-          const transactionDate = parse(transaction.date, 'MMM d, yyyy', new Date());
-          if (isWithinInterval(transactionDate, { start: sevenDaysAgo, end: today })) {
-            const weekDayEntry = weeklyData.find(d => d.fullDate === format(transactionDate, 'MMM d, yyyy'));
-            if (weekDayEntry) {
+      try {
+        const transactionDate = parse(transaction.date, 'MMM d, yyyy', new Date());
+        if (isWithinInterval(transactionDate, { start: sevenDaysAgo, end: today })) {
+          const weekDayEntry = weeklyData.find(d => d.fullDate === format(transactionDate, 'MMM d, yyyy'));
+          if (weekDayEntry) {
+            if (transaction.type === 'debit') {
               weekDayEntry.amount += transaction.amount;
+            } else if (transaction.type === 'credit') {
+              weekDayEntry.amount -= transaction.amount;
             }
           }
-          if (isWithinInterval(transactionDate, { start: startOfThisWeek, end: endOfThisWeek })) {
+        }
+        if (isWithinInterval(transactionDate, { start: startOfThisWeek, end: endOfThisWeek })) {
+          if (transaction.type === 'debit') {
             totalWeeklySpend += transaction.amount;
           }
-        } catch (e) { /* Ignore invalid dates */ }
-      }
+        }
+      } catch (e) { /* Ignore invalid dates */ }
     });
     let budgetDifference = 0;
     let isOverBudget = false;

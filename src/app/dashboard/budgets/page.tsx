@@ -147,7 +147,7 @@ const Budgets = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   const { data: categories } = useCollection<Category>(
-    user ? `categories?user_id=eq.${user.id}` : null
+    user ? `categories?select=*&user_id=eq.${user.id}` : null
   );
 
   const { data: budgetSettings } = useDoc<{ budgets: Record<string, number> }>(

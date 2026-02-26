@@ -75,7 +75,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           bg_color: "bg-primary/10",
           groups: [],
         });
-        mutate(`categories?user_id=eq.${user.id}`); // Force refresh immediately
+        mutate(`categories?select=*&user_id=eq.${user.id}`); // Force refresh immediately
       } else {
         finalCategoryName = existingCat.name; // Use existing casing
       }
@@ -86,20 +86,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       category: finalCategoryName,
       date: formatDate(new Date()),
     });
-    mutate(`transactions?user_id=eq.${user.id}`);
-    mutate(`categories?user_id=eq.${user.id}`);
+    mutate(`transactions?select=*&user_id=eq.${user.id}`);
+    mutate(`categories?select=*&user_id=eq.${user.id}`);
   };
 
   const deleteTransaction = async (id: number) => {
     if (!user) return;
     await deleteDocument("transactions", id);
-    mutate(`transactions?user_id=eq.${user.id}`);
+    mutate(`transactions?select=*&user_id=eq.${user.id}`);
   };
 
   const addCategory = async (category: Omit<Category, "id" | "user_id" | "created_at">) => {
     if (!user) return;
     await addDocument("categories", category);
-    mutate(`categories?user_id=eq.${user.id}`);
+    mutate(`categories?select=*&user_id=eq.${user.id}`);
   };
 
   const deleteCategory = async (id: number) => {
@@ -119,8 +119,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     toast.success('Category deleted and transactions reassigned.');
-    mutate(`transactions?user_id=eq.${user.id}`);
-    mutate(`categories?user_id=eq.${user.id}`);
+    mutate(`transactions?select=*&user_id=eq.${user.id}`);
+    mutate(`categories?select=*&user_id=eq.${user.id}`);
   };
 
   const updateSettings = async (settings: Partial<Settings>) => {
@@ -133,7 +133,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) throw error;
 
-      mutate(`settings?user_id=eq.${user.id}`);
+      mutate(`settings?select=*&user_id=eq.${user.id}`);
       toast.success("Settings updated successfully!");
 
     } catch (error) {

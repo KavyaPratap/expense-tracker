@@ -41,11 +41,11 @@ const Analytics = () => {
   const user = session?.user;
 
   const { data: expenses } = useCollection<Transaction>(
-    user ? `transactions?user_id=eq.${user.id}` : null
+    user ? `transactions?select=*&user_id=eq.${user.id}` : null
   );
 
   const { data: settings } = useDoc<Settings>(
-    user ? `settings?user_id=eq.${user.id}` : null
+    user ? `settings?select=*&user_id=eq.${user.id}` : null
   );
 
   const currencySymbol = useMemo(
@@ -142,10 +142,12 @@ const Analytics = () => {
 
     safeExpenses.forEach((t) => {
       try {
-        if (t.type === 'debit') {
-          const monthKey = format(new Date(t.date), 'MMM yyyy');
-          if (monthKey in monthlySpending) {
+        const monthKey = format(new Date(t.date), 'MMM yyyy');
+        if (monthKey in monthlySpending) {
+          if (t.type === 'debit') {
             monthlySpending[monthKey] += t.amount;
+          } else if (t.type === 'credit') {
+            monthlySpending[monthKey] -= t.amount;
           }
         }
       } catch (e) { /* ignore */ }
