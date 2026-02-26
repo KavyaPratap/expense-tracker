@@ -39,9 +39,53 @@ export interface PipelineResult {
 }
 
 /**
- * Run the full import pipeline
+ * Run the full import pipeline explicitly with a timeout to guarantee 
+ * graceful failure before serverless function force-kill (60s limit).
  */
 export async function runPipeline(input: PipelineInput): Promise<PipelineResult> {
+    const TIMEOUT_MS = 50000; // 50 seconds to safely fall back before Vercel 60s timeout
+
+    return Promise.race([
+        executePipeline(input),
+        new Promise<PipelineResult>((_, reject) =>
+            setTimeout(() => reject(new Error('Processing timeout limit exceeded (50s). The file is too large or too complex.')), TIMEOUT_MS)
+        )
+    ]).catch(async (error) => {
+        // Fallback catch for the race condition timeout
+        const errorMsg = error instanceof Error ? error.message : 'Unknown pipeline error';
+        console.error('Pipeline timeout/error:', errorMsg);
+
+        const adminSupabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            { auth: { persistSession: false } }
+        );
+
+        await adminSupabase
+            .from('import_jobs')
+            .update({
+                status: 'failed',
+                error_message: errorMsg,
+                processing_time_ms: TIMEOUT_MS,
+            })
+            .eq('id', input.jobId);
+
+        return {
+            success: false,
+            totalRows: 0,
+            processedRows: 0,
+            aiTokensUsed: 0,
+            aiCostEstimate: 0,
+            error: errorMsg,
+            processingTimeMs: TIMEOUT_MS,
+        };
+    });
+}
+
+/**
+ * Core execution logic for the pipeline
+ */
+async function executePipeline(input: PipelineInput): Promise<PipelineResult> {
     const startTime = Date.now();
 
     const supabase = createClient(
@@ -109,6 +153,25 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineResult>
         const geminiKey = process.env.GEMINI_API_KEY;
 
         if (extracted.length === 0 && geminiKey) {
+            // Check daily AI token usage limit (50k tokens per user per day)
+            // Retrieve today's usage from import_jobs
+            const startOfDay = new Date();
+            startOfDay.setHours(0, 0, 0, 0);
+
+            const { data: usageData } = await adminSupabase
+                .from('import_jobs')
+                .select('ai_tokens_used')
+                .eq('user_id', input.userId)
+                .gte('created_at', startOfDay.toISOString());
+
+            const todayTokens = (usageData || []).reduce((sum, job) => sum + (job.ai_tokens_used || 0), 0);
+            const MAX_DAILY_TOKENS = 50000;
+
+            if (todayTokens >= MAX_DAILY_TOKENS) {
+                throw new Error(
+                    `Daily AI processing limit exceeded (${Math.round(todayTokens / 1000)}k / ${MAX_DAILY_TOKENS / 1000}k tokens). Please try again tomorrow or use a supported bank format.`
+                );
+            }
             if (isImage) {
                 // Image extraction via Gemini Vision
                 const base64 = input.fileBuffer.toString('base64');
@@ -146,7 +209,12 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineResult>
             .from('user_merchant_map')
             .select('*')
             .eq('user_id', input.userId);
-        const merchantMap: UserMerchantMap[] = merchantMapData || [];
+
+        // Normalize the merchant map internally (lowercase & trim)
+        const merchantMap: UserMerchantMap[] = (merchantMapData || []).map(m => ({
+            ...m,
+            merchant: m.merchant.toLowerCase().trim()
+        }));
 
         const { data: existingTxData } = await adminSupabase
             .from('transactions')
@@ -171,11 +239,12 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineResult>
             const hash = computeHash(input.userId, tx);
             const confidence = computeConfidence(tx, extractionSource, merchantMap);
 
-            // Apply merchant map category if available
+            // Apply merchant map category if available (normalized match)
             let category = tx.category;
+            const normalizedMerchant = tx.merchant.toLowerCase().trim();
             if (!category) {
                 const mapped = merchantMap.find(
-                    (m) => m.merchant.toLowerCase() === tx.merchant.toLowerCase()
+                    (m) => m.merchant === normalizedMerchant
                 );
                 if (mapped) category = mapped.category;
             }

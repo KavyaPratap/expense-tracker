@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // ── Create import job ──
+        // ── Create import job (initial) ──
         const { data: job, error: jobError } = await supabase
             .from('import_jobs')
             .insert({
@@ -131,30 +131,36 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // ── Trigger async processing ──
-        // Fire-and-forget: call the process route internally
-        const processUrl = new URL('/api/import/process', req.url);
-        const authHeader = req.headers.get('Authorization') || '';
+        // ── Upload file to Supabase Storage ──
+        const extension = file.name.split('.').pop() || 'tmp';
+        const filePath = `${user.id}/${job.id}.${extension}`;
 
-        // Non-blocking fetch — don't await
-        fetch(processUrl.toString(), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': authHeader,
-            },
-            body: JSON.stringify({
-                jobId: job.id,
-                userId: user.id,
-                fileName: file.name,
-                fileType: mimeType,
-                mimeType,
-                fileBase64: buffer.toString('base64'),
-            }),
-        }).catch((err) => {
-            console.error('Failed to trigger processing:', err);
-        });
+        const { error: uploadError } = await supabase.storage
+            .from('import_files')
+            .upload(filePath, buffer, {
+                contentType: mimeType,
+                upsert: true,
+            });
 
+        if (uploadError) {
+            // Rollback job creation if upload fails
+            await supabase.from('import_jobs').delete().eq('id', job.id);
+            console.error('Storage upload error:', uploadError);
+            return NextResponse.json(
+                { error: 'Failed to upload file to processing storage' },
+                { status: 500 }
+            );
+        }
+
+        // ── Update job with file path ──
+        await supabase
+            .from('import_jobs')
+            .update({ file_path: filePath })
+            .eq('id', job.id);
+
+        // We return the jobId immediately.
+        // The client UI is now responsible for calling /api/import/process
+        // to properly await the result and handle serverless function lifecycle safely.
         return NextResponse.json({ jobId: job.id, status: 'queued' });
     } catch (error) {
         console.error('Upload error:', error);

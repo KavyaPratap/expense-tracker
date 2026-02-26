@@ -57,6 +57,8 @@ export default function ImportPreviewPage({
     const [filter, setFilter] = useState<FilterTab>('all');
     const [isCommitting, setIsCommitting] = useState(false);
     const [localEdits, setLocalEdits] = useState<Record<string, Partial<ImportTransaction>>>({});
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 50;
 
     // Apply local edits to transactions
     const txList = useMemo(() => {
@@ -78,6 +80,16 @@ export default function ImportPreviewPage({
                 return txList;
         }
     }, [txList, filter]);
+
+    // Reset pagination when filter changes
+    useMemo(() => setCurrentPage(1), [filter]);
+
+    // Paginated list
+    const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+    const paginatedTxs = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filtered.slice(start, start + ITEMS_PER_PAGE);
+    }, [filtered, currentPage]);
 
     // Summary stats
     const summary = useMemo(() => {
@@ -129,7 +141,7 @@ export default function ImportPreviewPage({
     const handleSelectAll = useCallback(
         async (selected: boolean) => {
             const updates: Record<string, Partial<ImportTransaction>> = {};
-            txList.forEach((tx) => {
+            filtered.forEach((tx) => {
                 if (!tx.is_duplicate) {
                     updates[tx.id] = { ...localEdits[tx.id], is_selected: selected };
                 }
@@ -138,7 +150,7 @@ export default function ImportPreviewPage({
 
             const { createClient } = await import('@/lib/supabase/client');
             const supabase = createClient();
-            const ids = txList.filter((t) => !t.is_duplicate).map((t) => t.id);
+            const ids = filtered.filter((t) => !t.is_duplicate).map((t) => t.id);
             if (ids.length > 0) {
                 await supabase
                     .from('import_transactions')
@@ -297,14 +309,14 @@ export default function ImportPreviewPage({
             </div>
 
             {/* Transaction List */}
-            <div className="space-y-2 mb-24">
-                {filtered.length === 0 ? (
+            <div className="space-y-2 mb-6">
+                {paginatedTxs.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground text-sm">
                         <Filter className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         No transactions match this filter
                     </div>
                 ) : (
-                    filtered.map((tx) => (
+                    paginatedTxs.map((tx) => (
                         <ImportPreviewRow
                             key={tx.id}
                             tx={tx}
@@ -316,6 +328,36 @@ export default function ImportPreviewPage({
                     ))
                 )}
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between mb-24 px-2">
+                    <p className="text-sm text-muted-foreground">
+                        Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} of {filtered.length} entries
+                    </p>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        >
+                            Previous
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={currentPage === totalPages}
+                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        >
+                            Next
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {/* Spacer if no pagination */}
+            {totalPages <= 1 && <div className="h-24" />}
 
             {/* Bottom Action Bar */}
             <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t p-4 z-50">

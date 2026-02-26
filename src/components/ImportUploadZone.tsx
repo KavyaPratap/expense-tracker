@@ -59,7 +59,7 @@ export const ImportUploadZone = ({ onUploadComplete, disabled }: ImportUploadZon
                 const formData = new FormData();
                 formData.append('file', file);
 
-                const response = await fetch('/api/import/upload', {
+                const uploadResponse = await fetch('/api/import/upload', {
                     method: 'POST',
                     headers: {
                         Authorization: `Bearer ${session.access_token}`,
@@ -67,18 +67,40 @@ export const ImportUploadZone = ({ onUploadComplete, disabled }: ImportUploadZon
                     body: formData,
                 });
 
+                setProgress(50);
+
+                const uploadData = await uploadResponse.json();
+
+                if (!uploadResponse.ok) {
+                    throw new Error(uploadData.error || 'Upload failed');
+                }
+
+                // Call the processing route explicitly from the client
+                // This ensures the serverless function runs reliably while the client waits
+                const processResponse = await fetch('/api/import/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({
+                        jobId: uploadData.jobId,
+                        userId: session.user.id,
+                    }),
+                });
+
                 setProgress(80);
 
-                const data = await response.json();
+                const processData = await processResponse.json();
 
-                if (!response.ok) {
-                    throw new Error(data.error || 'Upload failed');
+                if (!processResponse.ok) {
+                    throw new Error(processData.error || 'Processing failed to start');
                 }
 
                 setProgress(100);
                 setUploadState('success');
-                toast.success('File uploaded! Processing started...');
-                onUploadComplete(data.jobId);
+                toast.success('File uploaded and processing started...');
+                onUploadComplete(uploadData.jobId);
 
                 // Reset after 2s
                 setTimeout(() => {

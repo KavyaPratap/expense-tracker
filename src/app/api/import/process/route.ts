@@ -6,28 +6,57 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { runPipeline } from '@/lib/import/pipeline';
+import { createClient } from '@supabase/supabase-js';
 
 export const maxDuration = 60; // Vercel/serverless timeout
 
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { jobId, userId, fileName, fileType, mimeType, fileBase64 } = body;
+        const { jobId, userId } = body;
 
-        if (!jobId || !userId || !fileBase64) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        if (!jobId || !userId) {
+            return NextResponse.json({ error: 'Missing jobId or userId' }, { status: 400 });
         }
 
-        const fileBuffer = Buffer.from(fileBase64, 'base64');
+        const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!, // Need service role to bypass RLS for background workers if needed
+            {
+                auth: { persistSession: false },
+            }
+        );
+
+        // Fetch job details
+        const { data: job, error: jobError } = await supabase
+            .from('import_jobs')
+            .select('file_path, file_name, file_type')
+            .eq('id', jobId)
+            .single();
+
+        if (jobError || !job || !job.file_path) {
+            return NextResponse.json({ error: 'Job not found or missing file_path' }, { status: 404 });
+        }
+
+        // Download file from storage
+        const { data: fileData, error: downloadError } = await supabase.storage
+            .from('import_files')
+            .download(job.file_path);
+
+        if (downloadError || !fileData) {
+            return NextResponse.json({ error: 'Failed to download file from storage' }, { status: 500 });
+        }
+
+        const fileBuffer = Buffer.from(await fileData.arrayBuffer());
 
         // Run the pipeline (this is the long-running operation)
         const result = await runPipeline({
             jobId,
             userId,
             fileBuffer,
-            fileName,
-            fileType,
-            mimeType,
+            fileName: job.file_name,
+            fileType: job.file_type,
+            mimeType: job.file_type,
         });
 
         return NextResponse.json(result);
