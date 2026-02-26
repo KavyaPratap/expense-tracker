@@ -3,14 +3,10 @@ async function test() {
   const buf = fs.readFileSync('package.json'); // Dummy (though it will fail to parse as PDF, let's see)
   try {
     const pdfModule = await import('pdf-parse');
-    let rawText = '';
+    console.log("pdfModule keys:", Object.keys(pdfModule));
+    console.log("pdfModule default:", typeof pdfModule.default);
     if (pdfModule.PDFParse) {
-      console.log("Using v2");
-      const instance = new pdfModule.PDFParse(buf);
-      await instance.load();
-      rawText = await instance.getText();
-    } else {
-      console.log("Using v1");
+      console.log("Using v2 detected");
     }
     console.log("TEXT EXTRACTED:", rawText.slice(0, 20));
   } catch (e) {

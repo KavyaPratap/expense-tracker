@@ -50,10 +50,16 @@ export async function POST(req: NextRequest) {
             .download(job.file_path);
 
         if (downloadError || !fileData) {
-            return NextResponse.json({ error: 'Failed to download file from storage' }, { status: 500 });
+            throw new Error(`Failed to download file: ${downloadError?.message}`);
+        }
+
+        console.log("[route] Downloaded fileData type:", typeof fileData);
+        if (fileData instanceof Blob) {
+            console.log("[route] fileData is Blob, size:", fileData.size);
         }
 
         const fileBuffer = Buffer.from(await fileData.arrayBuffer());
+        console.log("[route] Created fileBuffer, length:", fileBuffer.length);
 
         // Run the pipeline (this is the long-running operation)
         const result = await runPipeline({

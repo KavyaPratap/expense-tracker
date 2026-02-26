@@ -108,16 +108,34 @@ export async function parsePDF(buffer: Buffer): Promise<ParseResult> {
         };
     }
 
-    // pdf-parse is CJS, dynamic import for compatibility
-    const pdfModule = await import('pdf-parse');
-    const parseFn = (pdfModule as any).default || pdfModule;
+    console.log("[parsePDF] Buffer length:", buffer.length);
+    if (buffer.length > 0) {
+        console.log("[parsePDF] First 4 bytes (string):", buffer.slice(0, 4).toString());
+        console.log("[parsePDF] First 4 bytes (hex):", buffer.slice(0, 4).toString('hex'));
+    }
 
+    // pdf-parse v2.4.5+ uses a class-based API and requires Uint8Array
+    const pdfModule = await import('pdf-parse');
     let rawText = '';
+
     try {
-        const data = await parseFn(buffer);
-        rawText = data.text || '';
+        if (pdfModule.PDFParse) {
+            // v2 API
+            const uint8Array = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+            // constructor expects LoadParameters object
+            const instance = new pdfModule.PDFParse({ data: uint8Array });
+            // getText() calls load() internally
+            const result = await instance.getText();
+            rawText = result.text || '';
+        } else {
+            // Fallback for v1 or other versions
+            const parseFn = (pdfModule as any).default || pdfModule;
+            const data = await parseFn(buffer);
+            rawText = data.text || '';
+        }
+        console.log("[parsePDF] Extracted text length:", rawText.length);
     } catch (err) {
-        console.error('PDF parse error:', err);
+        console.error('[parsePDF] error:', err);
         throw new Error('Failed to parse PDF file');
     }
 
