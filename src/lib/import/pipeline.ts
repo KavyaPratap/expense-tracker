@@ -6,7 +6,6 @@
 
 import { parseCSV, parseExcel, parsePDF, type ParseResult } from './parsers';
 import { detectTemplate, parseWithTemplate, type ExtractedTransaction } from './templates';
-import { extractWithGemini, extractFromImageWithGemini } from './gemini';
 import { extractWithGroq } from './groq';
 import {
     validateTransactions,
@@ -159,11 +158,10 @@ async function executePipeline(input: PipelineInput): Promise<PipelineResult> {
             }
         }
 
-        // ── Step 4: AI fallback ──
-        const geminiKey = process.env.GEMINI_API_KEY;
+        // ── Step 4: AI extraction (Groq-Only) ──
         const groqKey = process.env.GROQ_API_KEY;
 
-        if (extracted.length === 0 && (geminiKey || groqKey)) {
+        if (extracted.length === 0 && groqKey) {
             // Check daily AI token usage limit
             const startOfDay = new Date();
             startOfDay.setHours(0, 0, 0, 0);
@@ -183,71 +181,58 @@ async function executePipeline(input: PipelineInput): Promise<PipelineResult> {
 
             // Pre-process text for better AI extraction
             let aiInputText = parseResult.rawText;
+            console.log(`[pipeline] Raw extracted text length: ${aiInputText.length} characters`);
+
             if (!isImage && aiInputText.trim().length > 0) {
                 const lines = aiInputText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-                // Keep lines that look like they contain a date (XX/XX/XXXX or XXXX-XX-XX)
-                const datePattern = /\d{1,4}[\/\-]\d{1,2}[\/\-]\d{1,4}/;
+
+                // Robust date pattern to handle DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD
+                const datePattern = /\d{1,4}[-\/]\d{1,2}[-\/]\d{1,4}/;
                 const transactionLines = lines.filter(line => datePattern.test(line));
 
                 if (transactionLines.length > 0) {
                     aiInputText = transactionLines.join('\n');
-                    console.log(`[pipeline] Cleaned text from ${lines.length} lines down to ${transactionLines.length} transaction-like lines`);
+                    console.log(`[pipeline] Cleaner: filtered ${lines.length} lines down to ${transactionLines.length} transaction rows.`);
+                    console.log(`[pipeline] Cleaned text sample: ${aiInputText.slice(0, 200)}...`);
+                } else {
+                    console.warn(`[pipeline] Cleaner: No lines matched date pattern. Using raw text instead.`);
+                    console.log(`[pipeline] Raw text sample: ${aiInputText.slice(0, 200)}...`);
                 }
             }
 
-            // Try Groq First (Faster and often more stable for structured JSON)
-            if (groqKey && !isImage && aiInputText.trim().length > 0) {
+            // Execute Groq Extraction
+            if (!isImage && aiInputText.trim().length > 0) {
                 try {
-                    console.log('[pipeline] Attempting Groq extraction...');
+                    console.log('[pipeline] Calling Groq extraction...');
                     const result = await extractWithGroq(aiInputText, groqKey);
-                    console.log(`[pipeline] Groq extraction complete. Found ${result.transactions.length} potential transactions.`);
+                    console.log(`[pipeline] Groq extraction successful. Found ${result.transactions.length} transactions.`);
                     extracted = result.transactions;
                     aiTokensUsed = result.tokensUsed;
                     extractionSource = 'ai_text';
-                } catch (groqError) {
-                    console.error('[pipeline] Groq extraction failed:', groqError);
+                } catch (error) {
+                    console.error('[pipeline] Groq extraction failed:', error);
+                    throw new Error(`AI extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 }
-            }
-
-            // Fallback to Gemini if Groq failed or it's an image
-            if (extracted.length === 0 && geminiKey) {
-                try {
-                    console.log('[pipeline] Attempting Gemini extraction...');
-                    if (isImage) {
-                        const base64 = input.fileBuffer.toString('base64');
-                        const result = await extractFromImageWithGemini(base64, input.mimeType, geminiKey);
-                        extracted = result.transactions;
-                        aiTokensUsed += result.tokensUsed;
-                        extractionSource = 'ai_image';
-                    } else if (aiInputText.trim().length > 0) {
-                        const result = await extractWithGemini(aiInputText, geminiKey);
-                        extracted = result.transactions;
-                        aiTokensUsed += result.tokensUsed;
-                        extractionSource = 'ai_text';
-                    }
-                    console.log(`[pipeline] Gemini extraction complete. Found ${extracted.length} potential transactions.`);
-                } catch (geminiError) {
-                    console.error('[pipeline] Gemini extraction failed:', geminiError);
-                }
+            } else if (isImage) {
+                // Gemini Vision was removed. If you need image support, we can add a Groq vision model in future if supported.
+                throw new Error('Image extraction is currently disabled as the AI provider is being reconfigured.');
             }
         }
 
         if (extracted.length === 0) {
-            throw new Error('No transactions could be extracted. The AI models failed to identify any valid data in your file.');
+            throw new Error('No transactions could be extracted. The file may be empty or encrypted.');
         }
 
         // ── Step 5: Validation ──
         const { valid, invalid } = validateTransactions(extracted);
 
         if (invalid.length > 0) {
-            console.warn(`[pipeline] Validation: ${valid.length} valid, ${invalid.length} invalid rows.`);
-            if (invalid.length > 0) {
-                console.log('[pipeline] Sample invalid row errors:', JSON.stringify(invalid.slice(0, 3), null, 2));
-            }
+            console.warn(`[pipeline] Validation Results: ${valid.length} valid, ${invalid.length} invalid.`);
+            console.log('[pipeline] Sample invalid rows:', JSON.stringify(invalid.slice(0, 2), null, 2));
         }
 
         if (valid.length === 0) {
-            throw new Error(`AI identified ${extracted.length} items but none passed validation rules. Check your file format.`);
+            throw new Error(`The AI found ${extracted.length} items but none passed security validation. Please check your data.`);
         }
 
         // ── Step 6: Load merchant map + existing hashes ──
