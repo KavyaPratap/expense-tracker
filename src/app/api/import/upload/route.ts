@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // ── Rate limit: 3 imports/hour ──
+        // ── Rate limit: 10 imports/hour ──
         const oneHourAgo = new Date(Date.now() - 3600_000).toISOString();
         const { count: recentCount } = await supabase
             .from('import_jobs')
@@ -89,9 +89,9 @@ export async function POST(req: NextRequest) {
             .eq('user_id', user.id)
             .gte('created_at', oneHourAgo);
 
-        if ((recentCount || 0) >= 3) {
+        if ((recentCount || 0) >= 10) {
             return NextResponse.json(
-                { error: 'Rate limit exceeded. Max 3 imports per hour.' },
+                { error: 'Rate limit exceeded. Max 10 imports per hour.' },
                 { status: 429 }
             );
         }

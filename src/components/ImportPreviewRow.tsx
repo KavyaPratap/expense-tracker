@@ -113,7 +113,10 @@ export const ImportPreviewRow = ({
                                 onClick={() => setIsEditing('amount')}
                                 title="Click to edit"
                             >
-                                <CurrencyIcon currency={tx.raw_payload?.originalCurrency as string || 'INR'} className="h-4 w-4 mr-0.5" />
+                                <CurrencyIcon
+                                    currency={(tx.raw_payload?.converted ? currencySymbol === '₹' ? 'INR' : currencySymbol === '$' ? 'USD' : currencySymbol === '€' ? 'EUR' : currencySymbol === '£' ? 'GBP' : 'INR' : tx.raw_payload?.originalCurrency as string) || 'INR'}
+                                    className="h-4 w-4 mr-0.5"
+                                />
                                 {tx.amount.toFixed(2)}
                             </p>
                         )}
@@ -185,7 +188,11 @@ export const ImportPreviewRow = ({
                                 }}
                             >
                                 <SelectTrigger className="h-6 text-xs w-auto min-w-[80px] border-0 bg-muted/50 px-2 flex items-center gap-1">
-                                    <SelectValue placeholder="Category" />
+                                    <SelectValue>
+                                        {categories.some(c => c.name === tx.category) || tx.category === 'Others'
+                                            ? tx.category
+                                            : tx.category || "Select..."}
+                                    </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                     {categories.map((cat) => (
