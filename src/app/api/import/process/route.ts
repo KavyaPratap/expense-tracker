@@ -21,9 +21,14 @@ export async function POST(req: NextRequest) {
 
         const supabase = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!, // Need service role to bypass RLS for background workers if needed
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
             {
                 auth: { persistSession: false },
+                global: {
+                    headers: {
+                        Authorization: req.headers.get('Authorization') || '',
+                    },
+                },
             }
         );
 
@@ -57,6 +62,7 @@ export async function POST(req: NextRequest) {
             fileName: job.file_name,
             fileType: job.file_type,
             mimeType: job.file_type,
+            authHeader: req.headers.get('Authorization') || undefined,
         });
 
         return NextResponse.json(result);

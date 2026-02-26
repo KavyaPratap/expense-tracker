@@ -26,6 +26,7 @@ export interface PipelineInput {
     fileName: string;
     fileType: string;
     mimeType: string;
+    authHeader?: string;
 }
 
 export interface PipelineResult {
@@ -58,7 +59,12 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineResult>
         const adminSupabase = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            { auth: { persistSession: false } }
+            {
+                auth: { persistSession: false },
+                global: {
+                    headers: input.authHeader ? { Authorization: input.authHeader } : {},
+                }
+            }
         );
 
         await adminSupabase
@@ -94,7 +100,10 @@ async function executePipeline(input: PipelineInput): Promise<PipelineResult> {
         {
             auth: { persistSession: false },
             global: {
-                headers: { 'x-pipeline-service': 'true' },
+                headers: {
+                    'x-pipeline-service': 'true',
+                    ...(input.authHeader ? { Authorization: input.authHeader } : {})
+                },
             },
         }
     );
