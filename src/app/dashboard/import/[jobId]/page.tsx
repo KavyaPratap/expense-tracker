@@ -362,8 +362,8 @@ export default function ImportPreviewPage({
             {totalPages <= 1 && <div className="h-24" />}
 
             {/* Bottom/Side Action Bar */}
-            <div className="fixed z-50 max-md:top-1/2 max-md:right-4 max-md:-translate-y-1/2 max-md:bg-transparent max-md:border-none max-md:p-0 bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t p-4 md:block">
-                <div className="max-w-2xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+            <div className="fixed z-50 max-md:top-1/2 max-md:right-4 max-md:-translate-y-1/2 max-md:bottom-auto max-md:left-auto max-md:w-auto max-md:bg-transparent max-md:border-none max-md:p-0 max-md:backdrop-blur-none bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t p-4 md:block">
+                <div className="max-w-2xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 md:gap-3">
                     <Button
                         variant="outline"
                         onClick={handleDiscard}
