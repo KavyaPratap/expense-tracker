@@ -14,33 +14,36 @@ export interface GeminiExtractionResult {
     tokensUsed: number;
 }
 
-const GEMINI_MODEL = 'gemini-1.5-flash-latest';
+const GEMINI_MODEL = 'gemini-1.0-pro';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-const EXTRACTION_PROMPT = `You are a transaction extraction engine. Extract all financial transactions from the provided text/data.
+const EXTRACTION_PROMPT = `You are a transaction extraction engine. Extract all financial transactions from the provided bank statement data.
 
-For each transaction, return EXACTLY this JSON structure:
-{
-  "date": "YYYY-MM-DD",
-  "amount": <positive number>,
-  "merchant": "<merchant/description name>",
-  "note": "<any additional reference or note>",
-  "category": "<best guess category>"
-}
+Each row generally follows this structure: Date | Description (Merchant) | Debit (Expense) | Credit (Income) | Balance
 
 Rules:
-- date MUST be in YYYY-MM-DD format
-- amount MUST be a positive number (no currency symbols)
-- merchant should be the cleaned business/person name
-- If amount has both credit and debit, use the non-zero value
-- If date is ambiguous (DD/MM vs MM/DD), prefer DD/MM for dates where day > 12
-- Strip control characters and clean whitespace
-- Do NOT invent transactions that don't exist in the data
-- Return an empty array if no transactions are found
+1. If Debit has a value -> amount = Debit, type = "expense"
+2. If Credit has a value -> amount = Credit, type = "income"
+3. date MUST be in YYYY-MM-DD format
+4. amount MUST be a positive number (no currency symbols)
+5. merchant should be the cleaned business/person name
+6. Ignore balance column, opening balance rows, and closing balance rows
+7. Strip control characters and clean whitespace
+8. Do NOT invent transactions that don't exist in the data
+9. Return an empty array if no transactions are found
 
-Categories to choose from: Food, Groceries, Shopping, Utilities, Rent, Transport, Fuel, Entertainment, Health, Income, Education, Travel, Others
+Return strictly valid JSON array. Format:
+[
+  {
+    "date": "YYYY-MM-DD",
+    "merchant": "string",
+    "amount": number,
+    "note": "string",
+    "category": "Food | Groceries | Shopping | Utilities | Rent | Transport | Fuel | Entertainment | Health | Income | Education | Travel | Others"
+  }
+]
 
-Return ONLY a valid JSON array. No markdown, no explanation.`;
+Return ONLY the JSON array. No markdown, no explanation.`;
 
 /**
  * Extract transactions from text using Gemini API
