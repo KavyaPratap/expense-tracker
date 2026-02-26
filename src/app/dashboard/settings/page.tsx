@@ -88,7 +88,7 @@ const CurrencySelector = ({
     { value: 'USD', symbol: '$', icon: DollarSign },
     { value: 'EUR', symbol: '€', icon: Euro },
     { value: 'GBP', symbol: '£', icon: PoundSterling },
-    { value: 'INR', symbol: '₹', icon: RupeeIcon },
+    { value: 'INR', symbol: '\u20B9', icon: RupeeIcon },
   ] as const;
 
   return (

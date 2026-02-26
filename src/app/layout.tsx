@@ -9,7 +9,7 @@ import { AppProvider } from "@/contexts/AppContext";
 import { VoiceExpenseWidget } from "@/components/VoiceExpenseWidget";
 
 const ptSans = PT_Sans({
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext"],
   weight: ["400", "700"],
 });
 
