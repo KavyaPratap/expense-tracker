@@ -4,7 +4,7 @@
 import {
   Home,
   FolderTree,
-  CreditCard,
+  Upload,
   BarChart3,
   Settings,
   Users,
@@ -26,7 +26,7 @@ export const MobileNav = () => {
     { icon: Home, label: "Home", path: "/dashboard" },
     { icon: Users, label: "Groups", path: "/dashboard/groups" },
     { icon: FolderTree, label: "Categories", path: "/dashboard/categories" },
-    { icon: CreditCard, label: "Payments", path: "/dashboard/payments" },
+    { icon: Upload, label: "Import", path: "/dashboard/import" },
     { icon: BarChart3, label: "Analytics", path: "/dashboard/analytics" },
     { icon: Settings, label: "Settings", path: "/dashboard/settings" },
   ];

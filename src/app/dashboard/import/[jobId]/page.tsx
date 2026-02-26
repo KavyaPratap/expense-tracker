@@ -1,0 +1,353 @@
+'use client';
+
+import { useState, useMemo, useCallback, use } from 'react';
+import { useRouter } from 'next/navigation';
+import { PageHeader } from '@/components/PageHeader';
+import { ImportPreviewRow } from '@/components/ImportPreviewRow';
+import { useSupabase } from '@/lib/supabase/provider';
+import { useCollection, useDoc } from '@/hooks/use-supabase';
+import type { ImportJob, ImportTransaction, Category } from '@/lib/types';
+import { getCurrencySymbol } from '@/lib/currency';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+    CheckCircle2,
+    XCircle,
+    Loader2,
+    ArrowLeft,
+    Filter,
+    AlertTriangle,
+    Copy,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { useSWRConfig } from 'swr';
+
+type FilterTab = 'all' | 'duplicates' | 'low_confidence';
+
+export default function ImportPreviewPage({
+    params,
+}: {
+    params: Promise<{ jobId: string }>;
+}) {
+    const { jobId } = use(params);
+    const router = useRouter();
+    const { session } = useSupabase();
+    const user = session?.user;
+    const { mutate } = useSWRConfig();
+
+    const { data: job } = useDoc<ImportJob>(
+        user ? `import_jobs?id=eq.${jobId}&user_id=eq.${user.id}` : null
+    );
+
+    const { data: transactions, isLoading } = useCollection<ImportTransaction>(
+        user ? `import_transactions?job_id=eq.${jobId}&user_id=eq.${user.id}&order=date.desc` : null
+    );
+
+    const { data: categories } = useCollection<Category>(
+        user ? `categories?user_id=eq.${user.id}` : null
+    );
+
+    const { data: settings } = useDoc<{ currency: string }>(
+        user ? `settings?select=currency&user_id=eq.${user.id}` : null
+    );
+
+    const currencySymbol = getCurrencySymbol(settings?.currency);
+    const [filter, setFilter] = useState<FilterTab>('all');
+    const [isCommitting, setIsCommitting] = useState(false);
+    const [localEdits, setLocalEdits] = useState<Record<string, Partial<ImportTransaction>>>({});
+
+    // Apply local edits to transactions
+    const txList = useMemo(() => {
+        if (!transactions) return [];
+        return transactions.map((tx) => ({
+            ...tx,
+            ...localEdits[tx.id],
+        }));
+    }, [transactions, localEdits]);
+
+    // Filtered list
+    const filtered = useMemo(() => {
+        switch (filter) {
+            case 'duplicates':
+                return txList.filter((t) => t.is_duplicate);
+            case 'low_confidence':
+                return txList.filter((t) => t.confidence < 0.7);
+            default:
+                return txList;
+        }
+    }, [txList, filter]);
+
+    // Summary stats
+    const summary = useMemo(() => {
+        const total = txList.length;
+        const selected = txList.filter((t) => t.is_selected && !t.is_duplicate).length;
+        const duplicates = txList.filter((t) => t.is_duplicate).length;
+        const lowConf = txList.filter((t) => t.confidence < 0.7).length;
+        const totalAmount = txList
+            .filter((t) => t.is_selected && !t.is_duplicate)
+            .reduce((sum, t) => sum + t.amount, 0);
+        return { total, selected, duplicates, lowConf, totalAmount };
+    }, [txList]);
+
+    const handleToggleSelect = useCallback(
+        async (id: string, selected: boolean) => {
+            setLocalEdits((prev) => ({
+                ...prev,
+                [id]: { ...prev[id], is_selected: selected },
+            }));
+
+            // Persist to DB
+            const { createClient } = await import('@/lib/supabase/client');
+            const supabase = createClient();
+            await supabase
+                .from('import_transactions')
+                .update({ is_selected: selected })
+                .eq('id', id);
+        },
+        []
+    );
+
+    const handleFieldChange = useCallback(
+        async (id: string, field: string, value: string | number) => {
+            setLocalEdits((prev) => ({
+                ...prev,
+                [id]: { ...prev[id], [field]: value },
+            }));
+
+            const { createClient } = await import('@/lib/supabase/client');
+            const supabase = createClient();
+            await supabase
+                .from('import_transactions')
+                .update({ [field]: value })
+                .eq('id', id);
+        },
+        []
+    );
+
+    const handleSelectAll = useCallback(
+        async (selected: boolean) => {
+            const updates: Record<string, Partial<ImportTransaction>> = {};
+            txList.forEach((tx) => {
+                if (!tx.is_duplicate) {
+                    updates[tx.id] = { ...localEdits[tx.id], is_selected: selected };
+                }
+            });
+            setLocalEdits((prev) => ({ ...prev, ...updates }));
+
+            const { createClient } = await import('@/lib/supabase/client');
+            const supabase = createClient();
+            const ids = txList.filter((t) => !t.is_duplicate).map((t) => t.id);
+            if (ids.length > 0) {
+                await supabase
+                    .from('import_transactions')
+                    .update({ is_selected: selected })
+                    .in('id', ids);
+            }
+        },
+        [txList, localEdits]
+    );
+
+    const handleCommit = useCallback(async () => {
+        if (!user || !job) return;
+        setIsCommitting(true);
+
+        try {
+            const { createClient } = await import('@/lib/supabase/client');
+            const supabase = createClient();
+            const { data: { session: sess } } = await supabase.auth.getSession();
+
+            const res = await fetch('/api/import/commit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${sess?.access_token}`,
+                },
+                body: JSON.stringify({ jobId }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error);
+
+            toast.success(`${data.committed} transactions imported!`);
+            mutate(`import_jobs?user_id=eq.${user.id}&order=created_at.desc`);
+            router.push('/dashboard/import');
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Commit failed');
+        } finally {
+            setIsCommitting(false);
+        }
+    }, [user, job, jobId, mutate, router]);
+
+    const handleDiscard = useCallback(async () => {
+        if (!user || !job) return;
+
+        const { createClient } = await import('@/lib/supabase/client');
+        const supabase = createClient();
+        await supabase
+            .from('import_jobs')
+            .update({ discarded: true, status: 'failed', error_message: 'Discarded by user' })
+            .eq('id', jobId);
+
+        toast.info('Import discarded');
+        mutate(`import_jobs?user_id=eq.${user.id}&order=created_at.desc`);
+        router.push('/dashboard/import');
+    }, [user, job, jobId, mutate, router]);
+
+    if (!job || isLoading) {
+        return (
+            <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
+
+    if (job.status === 'completed') {
+        return (
+            <>
+                <PageHeader title="Import Complete" subtitle="This import has already been committed" />
+                <div className="flex flex-col items-center py-12 gap-4">
+                    <CheckCircle2 className="h-12 w-12 text-green-500" />
+                    <p className="text-muted-foreground">All transactions have been imported.</p>
+                    <Button variant="outline" onClick={() => router.push('/dashboard/import')}>
+                        <ArrowLeft className="h-4 w-4 mr-2" /> Back to Import
+                    </Button>
+                </div>
+            </>
+        );
+    }
+
+    return (
+        <>
+            <PageHeader
+                title="Review Import"
+                subtitle={job.file_name}
+            />
+
+            {/* Summary Bar */}
+            <Card className="mb-6">
+                <CardContent className="py-3 px-4">
+                    <div className="flex items-center justify-between flex-wrap gap-3">
+                        <div className="flex items-center gap-4 text-sm">
+                            <span>
+                                <strong>{summary.selected}</strong> / {summary.total} selected
+                            </span>
+                            {summary.duplicates > 0 && (
+                                <span className="text-orange-600 flex items-center gap-1">
+                                    <Copy className="h-3.5 w-3.5" />
+                                    {summary.duplicates} duplicates
+                                </span>
+                            )}
+                            {summary.lowConf > 0 && (
+                                <span className="text-amber-600 flex items-center gap-1">
+                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                    {summary.lowConf} low confidence
+                                </span>
+                            )}
+                        </div>
+                        <div className="font-bold text-lg">
+                            {currencySymbol}{summary.totalAmount.toFixed(2)}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-2 mb-4">
+                {[
+                    { key: 'all' as const, label: 'All', count: txList.length },
+                    { key: 'duplicates' as const, label: 'Duplicates', count: summary.duplicates },
+                    { key: 'low_confidence' as const, label: 'Low Confidence', count: summary.lowConf },
+                ].map((tab) => (
+                    <Button
+                        key={tab.key}
+                        variant={filter === tab.key ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setFilter(tab.key)}
+                        className="gap-1"
+                    >
+                        {tab.label}
+                        {tab.count > 0 && (
+                            <Badge variant="secondary" className="text-[10px] ml-0.5 px-1.5">
+                                {tab.count}
+                            </Badge>
+                        )}
+                    </Button>
+                ))}
+
+                <div className="flex-1" />
+
+                {/* Bulk actions */}
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleSelectAll(true)}
+                >
+                    Select All
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleSelectAll(false)}
+                >
+                    Deselect All
+                </Button>
+            </div>
+
+            {/* Transaction List */}
+            <div className="space-y-2 mb-24">
+                {filtered.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground text-sm">
+                        <Filter className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        No transactions match this filter
+                    </div>
+                ) : (
+                    filtered.map((tx) => (
+                        <ImportPreviewRow
+                            key={tx.id}
+                            tx={tx}
+                            categories={categories || []}
+                            currencySymbol={currencySymbol}
+                            onToggleSelect={handleToggleSelect}
+                            onFieldChange={handleFieldChange}
+                        />
+                    ))
+                )}
+            </div>
+
+            {/* Bottom Action Bar */}
+            <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t p-4 z-50">
+                <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+                    <Button
+                        variant="outline"
+                        onClick={handleDiscard}
+                        disabled={isCommitting}
+                    >
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Discard
+                    </Button>
+
+                    <Button
+                        onClick={handleCommit}
+                        disabled={isCommitting || summary.selected === 0}
+                        className="min-w-[160px]"
+                    >
+                        {isCommitting ? (
+                            <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Importing...
+                            </>
+                        ) : (
+                            <>
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                Import {summary.selected} transactions
+                            </>
+                        )}
+                    </Button>
+                </div>
+            </div>
+        </>
+    );
+}
