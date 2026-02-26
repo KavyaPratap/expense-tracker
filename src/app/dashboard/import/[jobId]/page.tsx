@@ -268,46 +268,51 @@ export default function ImportPreviewPage({
                 </CardContent>
             </Card>
 
-            {/* Filter Tabs */}
-            <div className="flex items-center gap-2 mb-4">
-                {[
-                    { key: 'all' as const, label: 'All', count: txList.length },
-                    { key: 'duplicates' as const, label: 'Duplicates', count: summary.duplicates },
-                    { key: 'low_confidence' as const, label: 'Low Confidence', count: summary.lowConf },
-                ].map((tab) => (
+            {/* Filter Tabs & Bulk actions */}
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+                    {[
+                        { key: 'all' as const, label: 'All', count: txList.length },
+                        { key: 'duplicates' as const, label: 'Duplicates', count: summary.duplicates },
+                        { key: 'low_confidence' as const, label: 'Low Confidence', count: summary.lowConf },
+                    ].map((tab) => (
+                        <Button
+                            key={tab.key}
+                            variant={filter === tab.key ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setFilter(tab.key)}
+                            className="gap-1 whitespace-nowrap"
+                        >
+                            {tab.label}
+                            {tab.count > 0 && (
+                                <Badge variant="secondary" className="text-[10px] ml-0.5 px-1.5">
+                                    {tab.count}
+                                </Badge>
+                            )}
+                        </Button>
+                    ))}
+                </div>
+
+                <div className="flex-1 min-w-[20px] md:block hidden" />
+
+                <div className="flex items-center gap-1 ml-auto">
                     <Button
-                        key={tab.key}
-                        variant={filter === tab.key ? 'default' : 'outline'}
+                        variant="ghost"
                         size="sm"
-                        onClick={() => setFilter(tab.key)}
-                        className="gap-1"
+                        onClick={() => handleSelectAll(true)}
+                        className="text-xs h-8"
                     >
-                        {tab.label}
-                        {tab.count > 0 && (
-                            <Badge variant="secondary" className="text-[10px] ml-0.5 px-1.5">
-                                {tab.count}
-                            </Badge>
-                        )}
+                        Select All
                     </Button>
-                ))}
-
-                <div className="flex-1" />
-
-                {/* Bulk actions */}
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleSelectAll(true)}
-                >
-                    Select All
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleSelectAll(false)}
-                >
-                    Deselect All
-                </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSelectAll(false)}
+                        className="text-xs h-8"
+                    >
+                        Deselect All
+                    </Button>
+                </div>
             </div>
 
             {/* Transaction List */}
@@ -362,7 +367,7 @@ export default function ImportPreviewPage({
             {totalPages <= 1 && <div className="h-24" />}
 
             {/* Bottom/Side Action Bar */}
-            <div className="fixed z-50 max-md:top-1/2 max-md:right-4 max-md:-translate-y-1/2 max-md:bottom-auto max-md:left-auto max-md:w-auto max-md:bg-transparent max-md:border-none max-md:p-0 max-md:backdrop-blur-none bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t p-4 md:block">
+            <div className="fixed z-50 max-md:bottom-32 max-md:right-4 max-md:top-auto max-md:left-auto max-md:w-auto max-md:bg-transparent max-md:border-none max-md:p-0 max-md:backdrop-blur-none bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t p-4 md:block">
                 <div className="max-w-2xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 md:gap-3">
                     <Button
                         variant="outline"
