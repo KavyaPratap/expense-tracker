@@ -33,6 +33,7 @@ import {
   TrendingDown,
   TrendingUp,
   Sparkles,
+  MoreHorizontal,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { toast } from 'sonner';
@@ -249,6 +250,75 @@ const Categories = () => {
                 </Card>
               );
             })}
+
+            {/* Uncategorized Section */}
+            {(() => {
+              const formalCategoryNames = (categories || []).map(c => c.name);
+              const uncategorizedTransactions = (transactions || []).filter(
+                (t) => !formalCategoryNames.includes(t.category)
+              );
+
+              if (uncategorizedTransactions.length === 0) return null;
+
+              return (
+                <Card className="shadow-sm bg-muted/20 border-dashed transition-shadow duration-300">
+                  <Accordion type="multiple" className="w-full">
+                    <AccordionItem value="uncategorized" className="border-none">
+                      <div className="flex items-center p-4">
+                        <div className="p-3 rounded-xl bg-muted/30">
+                          <MoreHorizontal className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <div className="flex-1 ml-4">
+                          <h3 className="font-semibold text-lg text-muted-foreground italic">
+                            Uncategorized / Others
+                          </h3>
+                          <p className="text-xs text-muted-foreground">
+                            {uncategorizedTransactions.length} transactions needing review
+                          </p>
+                        </div>
+                      </div>
+
+                      <AccordionTrigger className="text-sm py-2 px-4 hover:no-underline justify-start gap-1">
+                        View Transactions
+                      </AccordionTrigger>
+                      <AccordionContent className="px-2 pb-2">
+                        <Card className="bg-muted/50 shadow-inner">
+                          <CardContent className="p-2 space-y-2">
+                            {uncategorizedTransactions.map((tx) => (
+                              <div
+                                key={tx.id}
+                                className="flex items-center justify-between text-sm p-2 rounded-md bg-background"
+                              >
+                                <div>
+                                  <p className="font-medium">{tx.merchant}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {tx.date} • <span className="text-destructive font-mono text-[10px]">{tx.category}</span>
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  {tx.type === 'credit' ? (
+                                    <TrendingUp className="h-4 w-4 text-success" />
+                                  ) : (
+                                    <TrendingDown className="h-4 w-4 text-destructive" />
+                                  )}
+                                  <span
+                                    className={`font-bold flex items-center ${tx.type === 'credit' ? 'text-success' : ''}`}
+                                  >
+                                    {tx.type === 'credit' ? '+' : ''}
+                                    <CurrencyIcon currency={settings?.currency} className="h-3 w-3 mx-0.5" />
+                                    {tx.amount.toFixed(2)}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </CardContent>
+                        </Card>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </Card>
+              );
+            })()}
           </div>
         ) : (
           <div className="text-center py-10 text-muted-foreground border border-dashed rounded-lg">

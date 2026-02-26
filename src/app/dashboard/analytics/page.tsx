@@ -18,10 +18,12 @@ import {
   getYear,
   subMonths,
   parse,
+  startOfMonth,
+  endOfMonth,
 } from 'date-fns';
-import { Activity, ArrowLeft, Target, TrendingDown, TrendingUp } from 'lucide-react';
+import { Activity, ArrowLeft, Calendar as CalendarIcon, Target, TrendingDown, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Cell,
   Line,
@@ -35,11 +37,22 @@ import {
 } from 'recharts';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 
 const Analytics = () => {
   const { session } = useSupabase();
   const user = session?.user;
+
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(getMonth(now).toString());
+  const [selectedYear, setSelectedYear] = useState(getYear(now).toString());
 
   const { data: expenses } = useCollection<Transaction>(
     user ? `transactions?select=*&user_id=eq.${user.id}` : null
@@ -57,11 +70,14 @@ const Analytics = () => {
   const { expenseDistribution, trendData, insights, hasExpenses } = useMemo(() => {
     const safeExpenses = expenses || [];
     const hasExpenses = safeExpenses.length > 0;
-    const now = new Date();
-    const currentMonth = getMonth(now);
-    const currentYear = getYear(now);
-    const lastMonth = getMonth(subMonths(now, 1));
-    const lastMonthYear = getYear(subMonths(now, 1));
+
+    const targetDate = new Date(parseInt(selectedYear), parseInt(selectedMonth), 1);
+    const viewMonth = getMonth(targetDate);
+    const viewYear = getYear(targetDate);
+
+    const prevMonthDate = subMonths(targetDate, 1);
+    const prevMonth = getMonth(prevMonthDate);
+    const prevMonthYear = getYear(prevMonthDate);
 
     // --- Totals for This Month vs. Last Month ---
     let totalSpentThisMonth = 0;
@@ -84,21 +100,21 @@ const Analytics = () => {
         const transactionMonth = getMonth(transactionDate);
         const transactionYear = getYear(transactionDate);
 
-        const isCurrentMonth =
-          transactionMonth === currentMonth && transactionYear === currentYear;
+        const isTargetMonth =
+          transactionMonth === viewMonth && transactionYear === viewYear;
 
         if (t.type === 'debit') {
-          if (isCurrentMonth) {
+          if (isTargetMonth) {
             totalSpentThisMonth += t.amount;
             categoryTotals[t.category] =
               (categoryTotals[t.category] || 0) + t.amount;
           } else if (
-            transactionMonth === lastMonth &&
-            transactionYear === lastMonthYear
+            transactionMonth === prevMonth &&
+            transactionYear === prevMonthYear
           ) {
             totalSpentLastMonth += t.amount;
           }
-        } else if (t.type === 'credit' && isCurrentMonth) {
+        } else if (t.type === 'credit' && isTargetMonth) {
           totalIncomeThisMonth += t.amount;
         }
       } catch (e) {
@@ -118,9 +134,9 @@ const Analytics = () => {
     }
 
     // --- Average Daily Spend ---
-    const daysInCurrentMonth = getDaysInMonth(now);
+    const daysInTargetMonth = getDaysInMonth(targetDate);
     const avgDailySpend =
-      totalSpentThisMonth > 0 ? totalSpentThisMonth / daysInCurrentMonth : 0;
+      totalSpentThisMonth > 0 ? totalSpentThisMonth / daysInTargetMonth : 0;
 
     // --- Pie Chart: Expense Distribution for Current Month ---
     const colors = [
@@ -145,7 +161,7 @@ const Analytics = () => {
     // --- Line Chart: Spending Trend for Last 6 Months ---
     const monthlySpending: Record<string, number> = {};
     for (let i = 5; i >= 0; i--) {
-      const date = subMonths(now, i);
+      const date = subMonths(targetDate, i);
       const monthKey = format(date, 'MMM yyyy');
       monthlySpending[monthKey] = 0;
     }
@@ -199,7 +215,7 @@ const Analytics = () => {
       },
       hasExpenses,
     };
-  }, [expenses]);
+  }, [expenses, selectedMonth, selectedYear]);
 
   const SpendingChangeIcon =
     insights.spendingChange >= 0 ? TrendingUp : TrendingDown;
@@ -223,6 +239,38 @@ const Analytics = () => {
           </Button>
         }
       />
+
+      <div className="flex gap-4 mb-6">
+        <div className="flex-1">
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-full bg-card">
+              <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
+              <SelectValue placeholder="Select Month" />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 12 }).map((_, i) => (
+                <SelectItem key={i} value={i.toString()}>
+                  {format(new Date(2024, i, 1), 'MMMM')}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-[120px]">
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-full bg-card">
+              <SelectValue placeholder="Year" />
+            </SelectTrigger>
+            <SelectContent>
+              {[2024, 2025, 2026].map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 gap-4 mb-6">
         <Card>

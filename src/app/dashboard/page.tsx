@@ -9,7 +9,7 @@ import {
   CreditCard,
   Smartphone,
   Wallet,
-  MoreHorizontal, TrendingUp, RotateCcw
+  MoreHorizontal, TrendingUp, RotateCcw, FolderTree
 } from 'lucide-react';
 import { AddTransactionDialog } from "@/components/AddTransactionDialog";
 import { useApp } from "@/contexts/AppContext";
@@ -371,9 +371,15 @@ const Dashboard = () => {
 
       <div className="mt-8 mb-4 flex items-center justify-between">
         <h2 className="text-xl font-bold">Recent Transactions</h2>
-        <Link href="/dashboard/analytics" className="text-sm text-primary hover:underline">
-          View All
-        </Link>
+        <div className="flex gap-4">
+          <Link href="/dashboard/categories" className="text-sm text-primary hover:underline flex items-center gap-1">
+            <FolderTree className="h-3 w-3" />
+            Categories
+          </Link>
+          <Link href="/dashboard/analytics" className="text-sm text-primary hover:underline">
+            View All
+          </Link>
+        </div>
       </div>
 
       <div className="space-y-3 mb-8">
