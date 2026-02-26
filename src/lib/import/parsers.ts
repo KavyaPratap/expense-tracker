@@ -113,6 +113,10 @@ export async function parsePDF(buffer: Buffer): Promise<ParseResult> {
     // Handle both pdf-parse v1 (Function) and v2 (PDFParse Class) cleanly
     let rawText = '';
     if (pdfModule.PDFParse) {
+        // Configure worker source from CDN to avoid "Cannot find module" errors in serverless/Vercel environments
+        const version = '5.4.296'; // Matches package-lock.json version for consistency
+        pdfModule.PDFParse.setWorker(`https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`);
+
         const uintBuffer = new Uint8Array(buffer);
         const instance = new pdfModule.PDFParse(uintBuffer);
         await instance.load();
