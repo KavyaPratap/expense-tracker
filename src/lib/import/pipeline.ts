@@ -7,6 +7,7 @@
 import { parseCSV, parseExcel, parsePDF, type ParseResult } from './parsers';
 import { detectTemplate, parseWithTemplate, type ExtractedTransaction } from './templates';
 import { extractWithGemini, extractFromImageWithGemini } from './gemini';
+import { extractWithGroq } from './groq';
 import {
     validateTransactions,
     computeConfidence,
@@ -160,10 +161,10 @@ async function executePipeline(input: PipelineInput): Promise<PipelineResult> {
 
         // ── Step 4: AI fallback ──
         const geminiKey = process.env.GEMINI_API_KEY;
+        const groqKey = process.env.GROQ_API_KEY;
 
-        if (extracted.length === 0 && geminiKey) {
+        if (extracted.length === 0 && (geminiKey || groqKey)) {
             // Check daily AI token usage limit (50k tokens per user per day)
-            // Retrieve today's usage from import_jobs
             const startOfDay = new Date();
             startOfDay.setHours(0, 0, 0, 0);
 
@@ -174,26 +175,45 @@ async function executePipeline(input: PipelineInput): Promise<PipelineResult> {
                 .gte('created_at', startOfDay.toISOString());
 
             const todayTokens = (usageData || []).reduce((sum, job) => sum + (job.ai_tokens_used || 0), 0);
-            const MAX_DAILY_TOKENS = 50000;
+            const MAX_DAILY_TOKENS = 100000; // Increased limit for dual-model support
 
             if (todayTokens >= MAX_DAILY_TOKENS) {
                 throw new Error(
                     `Daily AI processing limit exceeded (${Math.round(todayTokens / 1000)}k / ${MAX_DAILY_TOKENS / 1000}k tokens). Please try again tomorrow or use a supported bank format.`
                 );
             }
-            if (isImage) {
-                // Image extraction via Gemini Vision
-                const base64 = input.fileBuffer.toString('base64');
-                const result = await extractFromImageWithGemini(base64, input.mimeType, geminiKey);
-                extracted = result.transactions;
-                aiTokensUsed = result.tokensUsed;
-                extractionSource = 'ai_image';
-            } else if (parseResult.rawText.trim().length > 0) {
-                // Text extraction via Gemini
-                const result = await extractWithGemini(parseResult.rawText, geminiKey);
-                extracted = result.transactions;
-                aiTokensUsed = result.tokensUsed;
-                extractionSource = 'ai_text';
+
+            // Try Gemini First
+            if (geminiKey) {
+                try {
+                    if (isImage) {
+                        const base64 = input.fileBuffer.toString('base64');
+                        const result = await extractFromImageWithGemini(base64, input.mimeType, geminiKey);
+                        extracted = result.transactions;
+                        aiTokensUsed = result.tokensUsed;
+                        extractionSource = 'ai_image';
+                    } else if (parseResult.rawText.trim().length > 0) {
+                        const result = await extractWithGemini(parseResult.rawText, geminiKey);
+                        extracted = result.transactions;
+                        aiTokensUsed = result.tokensUsed;
+                        extractionSource = 'ai_text';
+                    }
+                } catch (geminiError) {
+                    console.error('Gemini extraction failed, trying Groq fallback:', geminiError);
+                }
+            }
+
+            // Fallback to Groq if Gemini failed or was skipped
+            if (extracted.length === 0 && groqKey && !isImage && parseResult.rawText.trim().length > 0) {
+                try {
+                    const result = await extractWithGroq(parseResult.rawText, groqKey);
+                    extracted = result.transactions;
+                    aiTokensUsed = result.tokensUsed;
+                    extractionSource = 'ai_text';
+                    console.log('Groq fallback successful');
+                } catch (groqError) {
+                    console.error('Groq extraction also failed:', groqError);
+                }
             }
         }
 

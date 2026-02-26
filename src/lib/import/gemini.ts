@@ -14,7 +14,7 @@ export interface GeminiExtractionResult {
     tokensUsed: number;
 }
 
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_MODEL = 'gemini-1.5-flash-latest';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 const EXTRACTION_PROMPT = `You are a transaction extraction engine. Extract all financial transactions from the provided text/data.
