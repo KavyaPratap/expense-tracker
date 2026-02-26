@@ -13,10 +13,15 @@ import {
     Clock,
     Eye,
     ChevronRight,
+    Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ImportJob } from '@/lib/types';
 import Link from 'next/link';
+import { useState } from 'react';
+import { useSupabase } from '@/lib/supabase/provider';
+import { useSWRConfig } from 'swr';
+import { toast } from 'sonner';
 
 interface ImportJobCardProps {
     job: ImportJob;
@@ -59,10 +64,47 @@ export const ImportJobCard = ({ job }: ImportJobCardProps) => {
     const isProcessing = job.status === 'processing';
     const isReady = job.status === 'ready';
 
+    const [isDeleting, setIsDeleting] = useState(false);
+    const { session } = useSupabase();
+    const { mutate } = useSWRConfig();
+
+    const handleDelete = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!session?.user || isDeleting) return;
+
+        if (!confirm('Are you sure you want to remove this import job?')) {
+            return;
+        }
+
+        setIsDeleting(true);
+        try {
+            const { createClient } = await import('@/lib/supabase/client');
+            const supabase = createClient();
+
+            const { error } = await supabase
+                .from('import_jobs')
+                .delete()
+                .eq('id', job.id)
+                .eq('user_id', session.user.id);
+
+            if (error) throw error;
+
+            toast.success('Import job removed');
+            mutate(`import_jobs?user_id=eq.${session.user.id}&order=created_at.desc`);
+        } catch (error) {
+            console.error('Failed to delete job:', error);
+            toast.error('Failed to remove job');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     return (
         <Card className={cn(
-            'transition-all duration-200',
-            isReady && 'ring-1 ring-amber-300 dark:ring-amber-700'
+            'transition-all duration-200 group',
+            isReady && 'ring-1 ring-amber-300 dark:ring-amber-700',
+            isDeleting && 'opacity-50 pointer-events-none'
         )}>
             <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -94,13 +136,28 @@ export const ImportJobCard = ({ job }: ImportJobCardProps) => {
                             {config.label}
                         </Badge>
 
-                        {isReady && (
+                        {isReady ? (
                             <Link href={`/dashboard/import/${job.id}`}>
                                 <Button size="sm" className="gap-1">
                                     Review
                                     <ChevronRight className="h-3 w-3" />
                                 </Button>
                             </Link>
+                        ) : (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={handleDelete}
+                                disabled={isDeleting}
+                                title="Remove imported job"
+                            >
+                                {isDeleting ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Trash2 className="h-4 w-4" />
+                                )}
+                            </Button>
                         )}
                     </div>
                 </div>
