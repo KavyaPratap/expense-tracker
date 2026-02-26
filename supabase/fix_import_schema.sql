@@ -21,8 +21,8 @@ ON CONFLICT (id) DO UPDATE SET
   allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'application/pdf', 'text/csv', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
 
 -- 3. Storage RLS Policies
--- Enable RLS on storage.objects if not already enabled (usually is by default)
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- Note: 'storage.objects' already has RLS enabled by default in Supabase.
+-- Attempting to run ALTER TABLE on it causes 'must be owner' errors.
 
 -- Drop existing policies if they exist to avoid conflict
 DROP POLICY IF EXISTS "Users can only upload their own import files" ON storage.objects;
