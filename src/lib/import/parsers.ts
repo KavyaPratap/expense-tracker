@@ -110,10 +110,19 @@ export async function parsePDF(buffer: Buffer): Promise<ParseResult> {
 
     // pdf-parse is CJS, dynamic import for compatibility
     const pdfModule = await import('pdf-parse') as any;
-    const parseFn = pdfModule.default || pdfModule;
-    const data = await parseFn(buffer);
+    // Handle both pdf-parse v1 (Function) and v2 (PDFParse Class) cleanly
+    let rawText = '';
+    if (pdfModule.PDFParse) {
+        const uintBuffer = new Uint8Array(buffer);
+        const instance = new pdfModule.PDFParse(uintBuffer);
+        await instance.load();
+        rawText = await instance.getText() || '';
+    } else {
+        const parseFn = pdfModule.default || pdfModule;
+        const data = await parseFn(buffer);
+        rawText = data.text || '';
+    }
 
-    const rawText = data.text || '';
     const lines = rawText.split(/\r?\n/).filter((l: string) => l.trim().length > 0);
 
     return {
