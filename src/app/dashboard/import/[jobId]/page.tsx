@@ -361,32 +361,36 @@ export default function ImportPreviewPage({
             {/* Spacer if no pagination */}
             {totalPages <= 1 && <div className="h-24" />}
 
-            {/* Bottom Action Bar */}
-            <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t p-4 z-50">
-                <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+            {/* Bottom/Side Action Bar */}
+            <div className="fixed z-50 max-md:top-1/2 max-md:right-4 max-md:-translate-y-1/2 max-md:bg-transparent max-md:border-none max-md:p-0 bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t p-4 md:block">
+                <div className="max-w-2xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
                     <Button
                         variant="outline"
                         onClick={handleDiscard}
                         disabled={isCommitting}
+                        className="max-md:shadow-lg max-md:bg-background max-md:w-12 max-md:h-12 max-md:rounded-full max-md:p-0"
                     >
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Discard
+                        <XCircle className="h-5 w-5 md:mr-2" />
+                        <span className="md:inline hidden">Discard</span>
                     </Button>
 
                     <Button
                         onClick={handleCommit}
                         disabled={isCommitting || summary.selected === 0}
-                        className="min-w-[160px]"
+                        className="min-w-[160px] max-md:min-w-0 max-md:w-16 max-md:h-16 max-md:rounded-full max-md:shadow-2xl max-md:flex-col max-md:gap-0"
                     >
                         {isCommitting ? (
                             <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Importing...
+                                <Loader2 className="h-5 w-5 md:mr-2 animate-spin" />
+                                <span className="md:inline hidden">Importing...</span>
                             </>
                         ) : (
                             <>
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                                Import {summary.selected} transactions
+                                <CheckCircle2 className="h-6 w-6 md:mr-2" />
+                                <div className="flex flex-col items-center">
+                                    <span className="md:inline hidden">Import {summary.selected} transactions</span>
+                                    <span className="md:hidden text-[10px] font-bold leading-tight">{summary.selected}</span>
+                                </div>
                             </>
                         )}
                     </Button>
