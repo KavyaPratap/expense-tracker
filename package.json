@@ -62,7 +62,7 @@
     "is-odd": "^3.0.1",
     "jspdf": "^4.0.0",
     "jspdf-autotable": "^5.0.7",
-    "lucide-react": "^0.417.0",
+    "lucide-react": "^0.575.0",
     "next": "^16.1.6",
     "next-themes": "^0.3.0",
     "pdf-parse": "^2.4.5",

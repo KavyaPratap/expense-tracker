@@ -102,7 +102,6 @@ export function parseExcel(buffer: Buffer): ParseResult {
  */
 export async function parsePDF(buffer: Buffer): Promise<ParseResult> {
     // pdf-parse is CJS, dynamic import for compatibility
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pdfModule = await import('pdf-parse') as any;
     const parseFn = pdfModule.default || pdfModule;
     const data = await parseFn(buffer);

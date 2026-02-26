@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
-import { Lock, Fingerprint, ScanFace } from 'lucide-react';
+import { Lock, FingerprintPattern, ScanFace } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -74,7 +74,7 @@ export default function BiometricAuthGuard({ children }: { children: React.React
                         onClick={performBiometricAuth}
                         className="w-full gap-2 transition-all active:scale-95"
                     >
-                        <Fingerprint className="w-5 h-5" />
+                        <FingerprintPattern className="w-5 h-5" />
                         Verify Identity
                     </Button>
                 </div>

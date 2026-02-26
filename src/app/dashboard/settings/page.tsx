@@ -43,7 +43,7 @@ import {
   DollarSign,
   Euro,
   PoundSterling,
-  Fingerprint,
+  FingerprintPattern,
   Smartphone,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -399,7 +399,7 @@ const Settings = () => {
           onChange: (v: boolean) => updateSettings({ notifications: v }),
         },
         {
-          icon: Fingerprint,
+          icon: FingerprintPattern,
           label: 'Biometric Login',
           toggle: true,
           value: isBiometricEnabled,
