@@ -108,12 +108,6 @@ export async function parsePDF(buffer: Buffer): Promise<ParseResult> {
         };
     }
 
-    console.log("[parsePDF] Buffer length:", buffer.length);
-    if (buffer.length > 0) {
-        console.log("[parsePDF] First 4 bytes (string):", buffer.slice(0, 4).toString());
-        console.log("[parsePDF] First 4 bytes (hex):", buffer.slice(0, 4).toString('hex'));
-    }
-
     // pdf-parse 1.1.1 uses a simple functional API and is highly compatible with Vercel
     const pdfModule = await import('pdf-parse');
     const parseFn = (pdfModule as any).default || pdfModule;
@@ -123,7 +117,6 @@ export async function parsePDF(buffer: Buffer): Promise<ParseResult> {
     try {
         const data = await parseFn(buffer);
         rawText = data.text || '';
-        console.log("[parsePDF] Extracted text length:", rawText.length);
     } catch (err) {
         console.error('[parsePDF] error:', err);
         throw new Error('Failed to parse PDF file');

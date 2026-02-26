@@ -15,6 +15,14 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { getCurrencySymbol } from '@/lib/currency';
 
 interface ImportUploadZoneProps {
     onUploadComplete: (jobId: string) => void;
@@ -37,6 +45,8 @@ export const ImportUploadZone = ({ onUploadComplete, disabled }: ImportUploadZon
     const [progress, setProgress] = useState(0);
     const [errorMsg, setErrorMsg] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const [sourceCurrency, setSourceCurrency] = useState('USD');
 
     const handleUpload = useCallback(
         async (file: File) => {
@@ -86,6 +96,7 @@ export const ImportUploadZone = ({ onUploadComplete, disabled }: ImportUploadZon
                     body: JSON.stringify({
                         jobId: uploadData.jobId,
                         userId: session.user.id,
+                        sourceCurrency: sourceCurrency, // Send the selected currency
                     }),
                 });
 
@@ -147,7 +158,22 @@ export const ImportUploadZone = ({ onUploadComplete, disabled }: ImportUploadZon
 
     return (
         <Card className="overflow-hidden">
-            <CardContent className="p-0">
+            <CardContent className="p-4 space-y-4">
+                <div className="flex items-center justify-between px-2">
+                    <span className="text-sm font-medium text-muted-foreground">Statement Currency:</span>
+                    <Select value={sourceCurrency} onValueChange={setSourceCurrency}>
+                        <SelectTrigger className="w-[120px] h-9">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="USD">USD ($)</SelectItem>
+                            <SelectItem value="INR">INR (₹)</SelectItem>
+                            <SelectItem value="EUR">EUR (€)</SelectItem>
+                            <SelectItem value="GBP">GBP (£)</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
                 <div
                     onDragOver={(e) => {
                         e.preventDefault();

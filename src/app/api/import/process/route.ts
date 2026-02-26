@@ -14,7 +14,7 @@ export const maxDuration = 60; // Vercel/serverless timeout
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { jobId, userId } = body;
+        const { jobId, userId, sourceCurrency } = body;
 
         if (!jobId || !userId) {
             return NextResponse.json({ error: 'Missing jobId or userId' }, { status: 400 });
@@ -53,13 +53,7 @@ export async function POST(req: NextRequest) {
             throw new Error(`Failed to download file: ${downloadError?.message}`);
         }
 
-        console.log("[route] Downloaded fileData type:", typeof fileData);
-        if (fileData instanceof Blob) {
-            console.log("[route] fileData is Blob, size:", fileData.size);
-        }
-
         const fileBuffer = Buffer.from(await fileData.arrayBuffer());
-        console.log("[route] Created fileBuffer, length:", fileBuffer.length);
 
         // Run the pipeline (this is the long-running operation)
         const result = await runPipeline({
@@ -70,6 +64,7 @@ export async function POST(req: NextRequest) {
             fileType: job.file_type,
             mimeType: job.file_type,
             authHeader: req.headers.get('Authorization') || undefined,
+            sourceCurrency,
         });
 
         return NextResponse.json(result);

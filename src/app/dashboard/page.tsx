@@ -92,12 +92,14 @@ const Dashboard = () => {
     isOverBudget
   } = useMemo(() => {
     const tx = transactions || [];
-    const todayKey = format(new Date(), 'MMM d, yyyy');
-    const todaysTransactions = tx.filter((t) => t.date === todayKey);
+    const today = new Date();
+    const todayStr_MMM = format(today, 'MMM d, yyyy');
+    const todayStr_ISO = format(today, 'yyyy-MM-dd');
+
+    const todaysTransactions = tx.filter((t) => t.date === todayStr_MMM || t.date === todayStr_ISO);
     const todaySpend = todaysTransactions
       .filter((t) => t.type === "debit")
       .reduce((sum, t) => sum + t.amount, 0);
-    const today = new Date();
     const sevenDaysAgo = subDays(today, 6);
     const weeklyData = Array.from({ length: 7 }).map((_, i) => {
       const date = subDays(today, 6 - i);
@@ -112,7 +114,16 @@ const Dashboard = () => {
     const endOfThisWeek = endOfWeek(today, { weekStartsOn: 1 });
     tx.forEach(transaction => {
       try {
-        const transactionDate = parse(transaction.date, 'MMM d, yyyy', new Date());
+        // Robust date parsing: try multiple formats
+        let transactionDate: Date;
+        if (transaction.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          transactionDate = parse(transaction.date, 'yyyy-MM-dd', new Date());
+        } else {
+          transactionDate = parse(transaction.date, 'MMM d, yyyy', new Date());
+        }
+
+        if (isNaN(transactionDate.getTime())) throw new Error("Invalid date");
+
         if (isWithinInterval(transactionDate, { start: sevenDaysAgo, end: today })) {
           const weekDayEntry = weeklyData.find(d => d.fullDate === format(transactionDate, 'MMM d, yyyy'));
           if (weekDayEntry) {

@@ -142,8 +142,14 @@ export const ImportPreviewRow = ({
                         <span className="text-muted-foreground text-xs">•</span>
 
                         <Select
-                            value={tx.category || ''}
-                            onValueChange={(v) => onFieldChange(tx.id, 'category', v)}
+                            value={categories.some(c => c.name === tx.category) || tx.category === 'Others' ? tx.category : 'custom'}
+                            onValueChange={(v) => {
+                                if (v === 'custom') {
+                                    setIsEditing('custom_category');
+                                } else {
+                                    onFieldChange(tx.id, 'category', v);
+                                }
+                            }}
                         >
                             <SelectTrigger className="h-6 text-xs w-auto min-w-[80px] border-0 bg-muted/50 px-2">
                                 <SelectValue placeholder="Category" />
@@ -155,8 +161,35 @@ export const ImportPreviewRow = ({
                                     </SelectItem>
                                 ))}
                                 <SelectItem value="Others">Others</SelectItem>
+                                <SelectItem value="custom" className="text-primary font-medium border-t">
+                                    + Add Custom...
+                                </SelectItem>
                             </SelectContent>
                         </Select>
+
+                        {isEditing === 'custom_category' && (
+                            <div className="flex items-center gap-1">
+                                <Input
+                                    autoFocus
+                                    placeholder="category..."
+                                    className="h-6 text-xs w-24 py-0"
+                                    onBlur={(e) => {
+                                        if (e.target.value) {
+                                            onFieldChange(tx.id, 'category', e.target.value);
+                                        }
+                                        setIsEditing(null);
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            if (e.currentTarget.value) {
+                                                onFieldChange(tx.id, 'category', e.currentTarget.value);
+                                            }
+                                            setIsEditing(null);
+                                        }
+                                    }}
+                                />
+                            </div>
+                        )}
 
                         {/* Confidence badge */}
                         <Badge className={cn('text-[10px] px-1.5 py-0', confidenceColor(tx.confidence))} variant="secondary">

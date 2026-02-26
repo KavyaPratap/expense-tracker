@@ -571,42 +571,6 @@ const Settings = () => {
         ))}
       </div>
 
-      {/* Quick Payments (migrated from Payments page) */}
-      <div className="mt-6">
-        <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">Quick Payments</h3>
-        <Card>
-          <CardContent className="p-3">
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { name: 'Google Pay', scheme: 'tez://' },
-                { name: 'PhonePe', scheme: 'phonepe://' },
-                { name: 'Paytm', scheme: 'paytmmp://' },
-                { name: 'Any UPI App', scheme: 'upi://pay' },
-              ].map((app) => (
-                <Button
-                  key={app.name}
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start gap-2"
-                  onClick={async () => {
-                    if (Capacitor.isNativePlatform()) {
-                      try {
-                        const { AppLauncher } = await import('@capacitor/app-launcher');
-                        await AppLauncher.openUrl({ url: app.scheme });
-                      } catch {
-                        // App not installed or unavailable
-                      }
-                    }
-                  }}
-                >
-                  <Smartphone className="h-4 w-4" />
-                  {app.name}
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       <p className="text-center text-xs text-muted-foreground mt-8">
         SmartSpend v1.0.0

@@ -45,7 +45,7 @@ export default function ImportPage() {
     const uploadDisabled = hasActiveJob || false;
 
     return (
-        <>
+        <div className="max-w-2xl mx-auto">
             <PageHeader
                 title="Import"
                 subtitle="Import transactions from bank statements"
@@ -86,6 +86,6 @@ export default function ImportPage() {
                     </div>
                 )}
             </div>
-        </>
+        </div>
     );
 }
