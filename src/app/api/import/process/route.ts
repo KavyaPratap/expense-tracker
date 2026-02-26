@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { runPipeline } from '@/lib/import/pipeline';
 import { createClient } from '@supabase/supabase-js';
 
+export const runtime = 'nodejs';
 export const maxDuration = 60; // Vercel/serverless timeout
 
 export async function POST(req: NextRequest) {

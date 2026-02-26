@@ -109,22 +109,16 @@ export async function parsePDF(buffer: Buffer): Promise<ParseResult> {
     }
 
     // pdf-parse is CJS, dynamic import for compatibility
-    const pdfModule = await import('pdf-parse') as any;
-    // Handle both pdf-parse v1 (Function) and v2 (PDFParse Class) cleanly
-    let rawText = '';
-    if (pdfModule.PDFParse) {
-        // Configure worker source from CDN to avoid "Cannot find module" errors in serverless/Vercel environments
-        const version = '5.4.296'; // Matches package-lock.json version for consistency
-        pdfModule.PDFParse.setWorker(`https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`);
+    const pdfModule = await import('pdf-parse');
+    const parseFn = (pdfModule as any).default || pdfModule;
 
-        const uintBuffer = new Uint8Array(buffer);
-        const instance = new pdfModule.PDFParse(uintBuffer);
-        await instance.load();
-        rawText = await instance.getText() || '';
-    } else {
-        const parseFn = pdfModule.default || pdfModule;
+    let rawText = '';
+    try {
         const data = await parseFn(buffer);
         rawText = data.text || '';
+    } catch (err) {
+        console.error('PDF parse error:', err);
+        throw new Error('Failed to parse PDF file');
     }
 
     const lines = rawText.split(/\r?\n/).filter((l: string) => l.trim().length > 0);
