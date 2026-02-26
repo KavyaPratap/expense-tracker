@@ -48,7 +48,6 @@ export default function BiometricAuthGuard({ children }: { children: React.React
 
             // If we get here, verification succeeded (plugin throws on failure)
             setIsLocked(false);
-            toast.success("Identity verified");
         } catch (error) {
             console.error("Authentication failed", error);
             toast.error("Authentication failed");

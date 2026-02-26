@@ -117,7 +117,7 @@ const Categories = () => {
           Categories
         </h2>
 
-        {categories && categories.length > 0 ? (
+        {((categories && categories.length > 0) || (transactions && transactions.length > 0)) ? (
           <div className="w-full space-y-2">
             {(categories || []).map((category) => {
               const categoryTransactions = (transactions || []).filter(
