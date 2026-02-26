@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -69,7 +70,12 @@ export const ImportUploadZone = ({ onUploadComplete, disabled }: ImportUploadZon
                 const formData = new FormData();
                 formData.append('file', file);
 
-                const uploadResponse = await fetch('/api/import/upload', {
+                // Use absolute URL on mobile to avoid internal Capacitor fetch issues
+                const API_BASE = Capacitor.isNativePlatform()
+                    ? 'https://expense-tracker-five-mu-77.vercel.app'
+                    : '';
+
+                const uploadResponse = await fetch(`${API_BASE}/api/import/upload`, {
                     method: 'POST',
                     headers: {
                         Authorization: `Bearer ${session.access_token}`,
@@ -87,7 +93,7 @@ export const ImportUploadZone = ({ onUploadComplete, disabled }: ImportUploadZon
 
                 // Call the processing route explicitly from the client
                 // This ensures the serverless function runs reliably while the client waits
-                const processResponse = await fetch('/api/import/process', {
+                const processResponse = await fetch(`${API_BASE}/api/import/process`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

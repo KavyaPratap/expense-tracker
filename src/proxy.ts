@@ -46,6 +46,15 @@ export async function proxy(request: NextRequest) {
         }
     }
 
+    // --- CORS Headers for Capacitor Mobile App ---
+    const origin = request.headers.get('origin')
+    if (origin && (origin.startsWith('capacitor://') || origin.startsWith('http://localhost'))) {
+        response.headers.set('Access-Control-Allow-Origin', origin)
+        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-pipeline-service')
+        response.headers.set('Access-Control-Allow-Credentials', 'true')
+    }
+
     return response
 }
 
@@ -60,5 +69,6 @@ export const config = {
          * Feel free to modify this pattern to include more paths.
          */
         '/((?!_next/static|_next/image|favicon.ico|auth/callback|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/api/:path*',
     ],
 }

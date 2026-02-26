@@ -6,7 +6,9 @@ const config: CapacitorConfig = {
   webDir: 'out',
   server: {
     url: 'https://expense-tracker-five-mu-77.vercel.app/',
-    androidScheme: 'https'
+    androidScheme: 'https',
+    cleartext: true,
+    allowNavigation: ['expense-tracker-five-mu-77.vercel.app', 'api.groq.com']
   }
 };
 
