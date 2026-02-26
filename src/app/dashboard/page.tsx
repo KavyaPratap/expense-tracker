@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { subDays, format, isWithinInterval, parse, getDaysInMonth, startOfWeek, endOfWeek } from 'date-fns';
+import { subDays, format, isWithinInterval, parse, getDaysInMonth, startOfWeek, endOfWeek, getMonth, getYear } from 'date-fns';
 import { BudgetNotifier } from "@/components/BudgetNotifier";
 import Link from "next/link";
 import { useCollection, useDoc } from "@/hooks/use-supabase";
@@ -152,13 +152,45 @@ const Dashboard = () => {
         isOverBudget = totalWeeklySpend > totalWeeklyBudget;
       }
     }
+    const currentMonth = getMonth(today);
+    const currentYear = getYear(today);
+
     const monthTotal = tx
-      .filter((t) => t.type === "debit")
+      .filter((t) => {
+        if (t.type !== "debit") return false;
+        try {
+          let transactionDate: Date;
+          if (t.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            transactionDate = parse(t.date, 'yyyy-MM-dd', new Date());
+          } else {
+            transactionDate = parse(t.date, 'MMM d, yyyy', new Date());
+          }
+          return getMonth(transactionDate) === currentMonth && getYear(transactionDate) === currentYear;
+        } catch (e) {
+          return false;
+        }
+      })
       .reduce((sum, t) => sum + t.amount, 0);
+
     const income = tx
-      .filter((t) => t.type === "credit")
+      .filter((t) => {
+        if (t.type !== "credit") return false;
+        try {
+          let transactionDate: Date;
+          if (t.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            transactionDate = parse(t.date, 'yyyy-MM-dd', new Date());
+          } else {
+            transactionDate = parse(t.date, 'MMM d, yyyy', new Date());
+          }
+          return getMonth(transactionDate) === currentMonth && getYear(transactionDate) === currentYear;
+        } catch (e) {
+          return false;
+        }
+      })
       .reduce((sum, t) => sum + t.amount, 0);
+
     const savedAmount = income - monthTotal;
+
     return {
       todaySpend,
       weeklyData,

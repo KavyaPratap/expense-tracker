@@ -13,26 +13,11 @@ const RATES: Record<Settings['currency'], number> = {
 };
 
 import { DollarSign, Euro, PoundSterling } from 'lucide-react';
+import { cn } from "./utils";
 import React from 'react';
 
-const RupeeIcon = ({ className, strokeWidth = 2.5 }: { className?: string; strokeWidth?: number }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-        style={{ display: 'inline-block', verticalAlign: 'middle' }}
-    >
-        <path d="M6 3h12" />
-        <path d="M6 8h12" />
-        <path d="m6 13 8.5 8" />
-        <path d="M6 13h3" />
-        <path d="M9 13c6.667 0 6.667-10 0-10" />
-    </svg>
+const RupeeIcon = ({ className }: { className?: string }) => (
+    <span className={className} style={{ fontWeight: 600 }}>₹</span>
 );
 
 export const CurrencyIcon = ({
@@ -45,7 +30,7 @@ export const CurrencyIcon = ({
     switch (currency) {
         case 'EUR': return <Euro className={className} />;
         case 'GBP': return <PoundSterling className={className} />;
-        case 'INR': return <RupeeIcon className={className} />;
+        case 'INR': return <RupeeIcon className={cn(className, "flex items-center justify-center")} />;
         default: return <DollarSign className={className} />;
     }
 };

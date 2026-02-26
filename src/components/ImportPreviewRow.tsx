@@ -141,38 +141,12 @@ export const ImportPreviewRow = ({
 
                         <span className="text-muted-foreground text-xs">•</span>
 
-                        <Select
-                            value={categories.some(c => c.name === tx.category) || tx.category === 'Others' ? tx.category : 'custom'}
-                            onValueChange={(v) => {
-                                if (v === 'custom') {
-                                    setIsEditing('custom_category');
-                                } else {
-                                    onFieldChange(tx.id, 'category', v);
-                                }
-                            }}
-                        >
-                            <SelectTrigger className="h-6 text-xs w-auto min-w-[80px] border-0 bg-muted/50 px-2">
-                                <SelectValue placeholder="Category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {categories.map((cat) => (
-                                    <SelectItem key={cat.id} value={cat.name}>
-                                        {cat.name}
-                                    </SelectItem>
-                                ))}
-                                <SelectItem value="Others">Others</SelectItem>
-                                <SelectItem value="custom" className="text-primary font-medium border-t">
-                                    + Add Custom...
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-
-                        {isEditing === 'custom_category' && (
+                        {isEditing === 'custom_category' ? (
                             <div className="flex items-center gap-1">
                                 <Input
                                     autoFocus
-                                    placeholder="category..."
-                                    className="h-6 text-xs w-24 py-0"
+                                    placeholder="category name..."
+                                    className="h-6 text-xs w-28 py-0 bg-muted/80 border-primary/50"
                                     onBlur={(e) => {
                                         if (e.target.value) {
                                             onFieldChange(tx.id, 'category', e.target.value);
@@ -185,10 +159,44 @@ export const ImportPreviewRow = ({
                                                 onFieldChange(tx.id, 'category', e.currentTarget.value);
                                             }
                                             setIsEditing(null);
+                                        } else if (e.key === 'Escape') {
+                                            setIsEditing(null);
                                         }
                                     }}
                                 />
+                                <button
+                                    onClick={() => setIsEditing(null)}
+                                    className="text-[10px] text-muted-foreground hover:text-primary underline"
+                                >
+                                    Cancel
+                                </button>
                             </div>
+                        ) : (
+                            <Select
+                                value={categories.some(c => c.name === tx.category) || tx.category === 'Others' ? tx.category : 'custom'}
+                                onValueChange={(v) => {
+                                    if (v === 'custom') {
+                                        setIsEditing('custom_category');
+                                    } else {
+                                        onFieldChange(tx.id, 'category', v);
+                                    }
+                                }}
+                            >
+                                <SelectTrigger className="h-6 text-xs w-auto min-w-[80px] border-0 bg-muted/50 px-2 flex items-center gap-1">
+                                    <SelectValue placeholder="Category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {categories.map((cat) => (
+                                        <SelectItem key={cat.id} value={cat.name}>
+                                            {cat.name}
+                                        </SelectItem>
+                                    ))}
+                                    <SelectItem value="Others">Others</SelectItem>
+                                    <SelectItem value="custom" className="text-primary font-medium border-t">
+                                        + Add Custom...
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
                         )}
 
                         {/* Confidence badge */}

@@ -17,6 +17,7 @@ import {
   getMonth,
   getYear,
   subMonths,
+  parse,
 } from 'date-fns';
 import { Activity, ArrowLeft, Target, TrendingDown, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
@@ -70,7 +71,13 @@ const Analytics = () => {
 
     safeExpenses.forEach((t) => {
       try {
-        const transactionDate = new Date(t.date);
+        let transactionDate: Date;
+        if (t.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          transactionDate = parse(t.date, 'yyyy-MM-dd', new Date());
+        } else {
+          transactionDate = parse(t.date, 'MMM d, yyyy', new Date());
+        }
+
         const transactionMonth = getMonth(transactionDate);
         const transactionYear = getYear(transactionDate);
 
@@ -142,7 +149,14 @@ const Analytics = () => {
 
     safeExpenses.forEach((t) => {
       try {
-        const monthKey = format(new Date(t.date), 'MMM yyyy');
+        let transactionDate: Date;
+        if (t.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          transactionDate = parse(t.date, 'yyyy-MM-dd', new Date());
+        } else {
+          transactionDate = parse(t.date, 'MMM d, yyyy', new Date());
+        }
+
+        const monthKey = format(transactionDate, 'MMM yyyy');
         if (monthKey in monthlySpending) {
           if (t.type === 'debit') {
             monthlySpending[monthKey] += t.amount;
