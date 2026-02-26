@@ -103,7 +103,7 @@ BEGIN
 
   -- 3. Upsert merchant mappings (lowercased)
   INSERT INTO user_merchant_map (user_id, merchant, category, confidence, usage_count, updated_at)
-  SELECT 
+  SELECT DISTINCT ON (lower(trim(merchant)))
     p_user_id,
     lower(trim(merchant)),
     COALESCE(category, 'Others'),
