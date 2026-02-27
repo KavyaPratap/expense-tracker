@@ -2,7 +2,30 @@ import { type NextRequest, NextResponse, userAgent } from 'next/server'
 import { createClient } from '@/lib/supabase/middleware'
 
 export async function proxy(request: NextRequest) {
+    const origin = request.headers.get('origin')
+    const isMobileOrigin = origin && (origin.startsWith('capacitor://') || origin.startsWith('http://localhost'))
+
+    // Handle OPTIONS request for CORS preflight intercept
+    if (request.method === 'OPTIONS') {
+        const preflightHeaders = new Headers()
+        if (isMobileOrigin) {
+            preflightHeaders.set('Access-Control-Allow-Origin', origin)
+            preflightHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+            preflightHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-pipeline-service')
+            preflightHeaders.set('Access-Control-Allow-Credentials', 'true')
+        }
+        return new NextResponse(null, { headers: preflightHeaders, status: 204 })
+    }
+
     const { supabase, response } = createClient(request)
+
+    // Append CORS to all other responses
+    if (isMobileOrigin) {
+        response.headers.set('Access-Control-Allow-Origin', origin)
+        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-pipeline-service')
+        response.headers.set('Access-Control-Allow-Credentials', 'true')
+    }
 
     const {
         data: { user },
@@ -15,26 +38,23 @@ export async function proxy(request: NextRequest) {
     // Device-specific routing for root path '/'
     if (url.pathname === '/') {
         // If mobile user visits root, redirect to login
-        // BUT if they are already logged in, they might expect dashboard?
-        // User requirement: "in web the home page gets open... in mobile/tablet show the login / sign up page"
         if (isMobile) {
             // If logged in, go to dashboard, else login
             if (user) {
                 url.pathname = '/dashboard'
-                return NextResponse.redirect(url)
+                return NextResponse.redirect(url, { headers: response.headers })
             } else {
                 url.pathname = '/login'
-                return NextResponse.redirect(url)
+                return NextResponse.redirect(url, { headers: response.headers })
             }
         }
-        // Desktop users stay on '/' (Landing Page)
     }
 
     // Auth protection for /dashboard routes
     if (url.pathname.startsWith('/dashboard')) {
         if (!user) {
             url.pathname = '/login'
-            return NextResponse.redirect(url)
+            return NextResponse.redirect(url, { headers: response.headers })
         }
     }
 
@@ -42,17 +62,8 @@ export async function proxy(request: NextRequest) {
     if (url.pathname === '/login' || url.pathname === '/signup') {
         if (user) {
             url.pathname = '/dashboard'
-            return NextResponse.redirect(url)
+            return NextResponse.redirect(url, { headers: response.headers })
         }
-    }
-
-    // --- CORS Headers for Capacitor Mobile App ---
-    const origin = request.headers.get('origin')
-    if (origin && (origin.startsWith('capacitor://') || origin.startsWith('http://localhost'))) {
-        response.headers.set('Access-Control-Allow-Origin', origin)
-        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-pipeline-service')
-        response.headers.set('Access-Control-Allow-Credentials', 'true')
     }
 
     return response

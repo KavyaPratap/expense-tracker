@@ -67,8 +67,27 @@ export const ImportUploadZone = ({ onUploadComplete, disabled }: ImportUploadZon
 
                 setProgress(30);
 
+                // Workaround for Capacitor Android WebView native File streaming bugs
+                // We read the file fully into memory first to guarantee the body isn't empty or locked
+                const fileToBlob = async (f: File): Promise<Blob> => {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            if (e.target?.result instanceof ArrayBuffer) {
+                                resolve(new Blob([e.target.result], { type: f.type || 'application/octet-stream' }));
+                            } else {
+                                reject(new Error("Could not construct file buffer"));
+                            }
+                        };
+                        reader.onerror = () => reject(new Error("Failed to read the file. Please check device permissions."));
+                        reader.readAsArrayBuffer(f);
+                    });
+                };
+
+                const memoryBlob = await fileToBlob(file);
+
                 const formData = new FormData();
-                formData.append('file', file);
+                formData.append('file', memoryBlob, file.name || 'upload.tmp');
 
                 // Use absolute URL on mobile to avoid internal Capacitor fetch issues
                 const API_BASE = Capacitor.isNativePlatform()
