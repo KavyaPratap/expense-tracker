@@ -36,7 +36,7 @@ export const getCurrencySymbol = (currency: Settings['currency'] | string = "INR
         USD: "$",
         EUR: "€",
         GBP: "£",
-        INR: "\u20B9",
+        INR: "₹",
     };
     return symbols[currency] || "$";
 };

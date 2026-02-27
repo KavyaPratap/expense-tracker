@@ -13,7 +13,9 @@ import {
 } from 'lucide-react';
 import { AddTransactionDialog } from "@/components/AddTransactionDialog";
 import { useApp } from "@/contexts/AppContext";
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
+import { WidgetBridgePlugin } from "capacitor-widget-bridge";
+import { App } from '@capacitor/app';
 import {
   Area,
   AreaChart,
@@ -77,6 +79,22 @@ const Dashboard = () => {
     user ? `budgets?select=*&user_id=eq.${user.id}` : null
   );
 
+  const [isGlobalAddOpen, setIsGlobalAddOpen] = useState(false);
+
+  useEffect(() => {
+    // Listen for deep links from the Android native widget
+    const listener = App.addListener('appUrlOpen', (event) => {
+      const url = event.url;
+      if (url.includes('com.smartspend.app://widget/add_transaction')) {
+        setIsGlobalAddOpen(true);
+      }
+    });
+
+    return () => {
+      listener.then(l => l.remove());
+    };
+  }, []);
+
   const currencySymbol = useMemo(
     () => getCurrencySymbol(settings?.currency),
     [settings]
@@ -131,8 +149,6 @@ const Dashboard = () => {
           if (weekDayEntry) {
             if (transaction.type === 'debit') {
               weekDayEntry.amount += transaction.amount;
-            } else if (transaction.type === 'credit') {
-              weekDayEntry.amount -= transaction.amount;
             }
           }
         }
@@ -220,6 +236,52 @@ const Dashboard = () => {
 
   const hasBudgets = budgetSettings && Object.keys(budgetSettings.budgets).length > 0;
 
+  useEffect(() => {
+    // Sync the computed spending and budget values to the native Android widget
+    const syncWidgetData = async () => {
+      try {
+        if (hasBudgets) {
+          await WidgetBridgePlugin.setItem({
+            key: "widget_title",
+            value: isOverBudget ? "Over Budget" : "On Track",
+            group: "group.expensebuilder.widget"
+          });
+          await WidgetBridgePlugin.setItem({
+            key: "widget_subtitle",
+            value: `You're ${Math.abs(budgetDifference)}% ${isOverBudget ? 'over' : 'under'} budget this week.`,
+            group: "group.expensebuilder.widget"
+          });
+          await WidgetBridgePlugin.setItem({
+            key: "widget_color_state",
+            value: isOverBudget ? "danger" : "safe",
+            group: "group.expensebuilder.widget"
+          });
+        } else {
+          await WidgetBridgePlugin.setItem({
+            key: "widget_title",
+            value: "Smart Spend",
+            group: "group.expensebuilder.widget"
+          });
+          await WidgetBridgePlugin.setItem({
+            key: "widget_subtitle",
+            value: "Tap + to add a transaction.",
+            group: "group.expensebuilder.widget"
+          });
+          await WidgetBridgePlugin.setItem({
+            key: "widget_color_state",
+            value: "safe",
+            group: "group.expensebuilder.widget"
+          });
+        }
+        await WidgetBridgePlugin.reloadAllTimelines();
+      } catch (e) {
+        // Widget bridge is only available on native devices
+        console.debug("WidgetBridge not available in web context");
+      }
+    };
+    syncWidgetData();
+  }, [hasBudgets, isOverBudget, budgetDifference]);
+
   return (
     <>
       <PageHeader
@@ -229,6 +291,8 @@ const Dashboard = () => {
           <AddTransactionDialog
             addTransaction={addTransaction}
             categories={categories || []}
+            controlledOpen={isGlobalAddOpen}
+            setControlledOpen={setIsGlobalAddOpen}
           />
         }
       />
@@ -266,13 +330,13 @@ const Dashboard = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-baseline justify-between mb-3">
-            <span className="text-4xl font-bold flex items-center">
-              <CurrencyIcon currency={settings?.currency} className="h-8 w-8 mr-1" />
-              {todaySpend.toFixed(2)}
+          <div className="flex items-baseline justify-between mb-3 gap-2">
+            <span className="text-4xl font-bold flex items-center min-w-0">
+              <CurrencyIcon currency={settings?.currency} className="h-8 w-8 mr-1 shrink-0" />
+              <span className="truncate">{todaySpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </span>
             {hasBudgets && (
-              <div className={`flex items-center gap-1 ${isOverBudget ? 'text-destructive' : 'text-success'}`}>
+              <div className={`flex items-center shrink-0 gap-1 ${isOverBudget ? 'text-destructive' : 'text-success'}`}>
                 {isOverBudget ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                 <span className="text-sm font-semibold">
                   {Math.abs(budgetDifference)}%
@@ -316,14 +380,14 @@ const Dashboard = () => {
                 axisLine={false}
                 stroke="hsl(var(--muted-foreground))"
                 fontSize={12}
-                tickFormatter={(v) => `${currencySymbol}${v}`}
+                tickFormatter={(v: number) => `${currencySymbol}${v >= 1000 ? (v / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + 'k' : v}`}
               />
               <Tooltip
                 contentStyle={{
                   backgroundColor: 'hsl(var(--background))',
                   borderColor: 'hsl(var(--border))',
                 }}
-                formatter={(v: number) => [`${currencySymbol}${v.toFixed(2)}`, "Spent"]}
+                formatter={(v: number) => [`${currencySymbol}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Spent"]}
               />
               <Area
                 type="monotone"
@@ -339,29 +403,29 @@ const Dashboard = () => {
 
       <div className="grid grid-cols-2 gap-4 mt-6">
         <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">This Month</p>
-            <p className="text-2xl font-bold flex items-center">
-              <CurrencyIcon currency={settings?.currency} className="h-6 w-6 mr-1" />
-              {monthTotal.toFixed(2)}
-            </p>
+          <CardContent className="pt-6 min-w-0">
+            <p className="text-sm text-muted-foreground truncate">This Month</p>
+            <div className="text-2xl font-bold flex items-center min-w-0">
+              <CurrencyIcon currency={settings?.currency} className="h-6 w-6 mr-1 shrink-0" />
+              <span className="truncate">{monthTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
             <div className="flex items-center gap-1 mt-2 text-destructive">
-              <TrendingUp className="h-3 w-3" />
-              <span className="text-xs">Total spent</span>
+              <TrendingUp className="h-3 w-3 shrink-0" />
+              <span className="text-xs truncate">Total spent</span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Saved</p>
-            <p className="text-2xl font-bold flex items-center">
-              <CurrencyIcon currency={settings?.currency} className="h-6 w-6 mr-1" />
-              {Math.max(0, savedAmount).toFixed(2)}
-            </p>
+          <CardContent className="pt-6 min-w-0">
+            <p className="text-sm text-muted-foreground truncate">Saved</p>
+            <div className="text-2xl font-bold flex items-center min-w-0">
+              <CurrencyIcon currency={settings?.currency} className="h-6 w-6 mr-1 shrink-0" />
+              <span className="truncate">{Math.max(0, savedAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
             <div className="flex items-center gap-1 mt-2 text-success">
-              <TrendingDown className="h-3 w-3" />
-              <span className="text-xs">Balance</span>
+              <TrendingDown className="h-3 w-3 shrink-0" />
+              <span className="text-xs truncate">Balance</span>
             </div>
           </CardContent>
         </Card>
@@ -389,21 +453,21 @@ const Dashboard = () => {
             .slice(0, 5)
             .map((tx) => (
               <Card key={tx.id} className="hover:bg-muted/50 transition-colors">
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-full ${tx.type === 'debit' ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'}`}>
+                <CardContent className="p-4 flex items-center justify-between gap-2 overflow-hidden">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`p-2 rounded-full shrink-0 ${tx.type === 'debit' ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'}`}>
                       {tx.type === 'debit' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                     </div>
-                    <div>
-                      <p className="font-semibold">{tx.merchant}</p>
-                      <p className="text-xs text-muted-foreground">{tx.date} • {tx.category}</p>
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate">{tx.merchant}</p>
+                      <p className="text-xs text-muted-foreground truncate">{tx.date} • {tx.category}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className={`font-bold flex items-center ${tx.type === 'debit' ? 'text-destructive' : 'text-success'}`}>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`font-bold flex items-center min-w-0 truncate max-w-[100px] xs:max-w-[140px] sm:max-w-none ${tx.type === 'debit' ? 'text-destructive' : 'text-success'}`}>
                       {tx.type === 'debit' ? '-' : '+'}
-                      <CurrencyIcon currency={settings?.currency} className="h-3 w-3 mx-0.5" />
-                      {tx.amount.toFixed(2)}
+                      <CurrencyIcon currency={settings?.currency} className="h-3 w-3 mx-0.5 shrink-0" />
+                      <span className="truncate">{tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </span>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>

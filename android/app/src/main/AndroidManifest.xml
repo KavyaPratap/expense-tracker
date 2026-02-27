@@ -78,6 +78,14 @@
                 <data android:scheme="com.smartspend.app" android:host="auth-callback" />
             </intent-filter>
 
+            <!-- Add this for Widget Deep Links -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.smartspend.app" android:host="widget" />
+            </intent-filter>
+
         </activity>
 
         <provider
@@ -89,6 +97,17 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- Widget Registration -->
+        <receiver android:name=".SmartWidgetProvider" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info" />
+        </receiver>
+
     </application>
 
     <!-- Permissions -->

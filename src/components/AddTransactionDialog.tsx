@@ -23,13 +23,21 @@ import { getCurrencySymbol } from "@/lib/currency";
 interface AddTransactionDialogProps {
   addTransaction: (transaction: Omit<Transaction, "id" | "date" | "created_at" | "user_id">, autoCategorize: boolean) => void;
   categories: Category[];
+  controlledOpen?: boolean;
+  setControlledOpen?: (open: boolean) => void;
 }
 
-export const AddTransactionDialog = ({ addTransaction, categories }: AddTransactionDialogProps) => {
+export const AddTransactionDialog = ({ addTransaction, categories, controlledOpen, setControlledOpen }: AddTransactionDialogProps) => {
   const { session } = useSupabase();
   const user = session?.user;
   const { addCategory } = useApp();
   const [open, setOpen] = useState(false);
+
+  const isDialogActive = controlledOpen !== undefined ? controlledOpen : open;
+  const handleDialogChange = (newOpen: boolean) => {
+    if (setControlledOpen) setControlledOpen(newOpen);
+    setOpen(newOpen);
+  };
   const [useAutoCategory, setUseAutoCategory] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -87,7 +95,7 @@ export const AddTransactionDialog = ({ addTransaction, categories }: AddTransact
 
       toast.success(`Transaction ${useAutoCategory ? 'auto-categorized and' : ''} added successfully!`);
 
-      setOpen(false);
+      handleDialogChange(false);
       setFormData({
         merchant: "",
         amount: "",
@@ -111,7 +119,7 @@ export const AddTransactionDialog = ({ addTransaction, categories }: AddTransact
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={isDialogActive} onOpenChange={handleDialogChange}>
       <DialogTrigger asChild>
         <Button size="sm" className="gap-2">
           <Plus className="h-4 w-4" />
@@ -248,7 +256,7 @@ export const AddTransactionDialog = ({ addTransaction, categories }: AddTransact
           </div>
 
           <div className="flex gap-3 justify-end">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => handleDialogChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
