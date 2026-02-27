@@ -243,12 +243,12 @@ const Dashboard = () => {
         if (hasBudgets) {
           await WidgetBridgePlugin.setItem({
             key: "widget_title",
-            value: isOverBudget ? "Over Budget" : "On Track",
+            value: `Budget: ${currencySymbol}${budgetDifference > 0 ? '+' : ''}${budgetDifference}%`,
             group: "group.expensebuilder.widget"
           });
           await WidgetBridgePlugin.setItem({
             key: "widget_subtitle",
-            value: `You're ${Math.abs(budgetDifference)}% ${isOverBudget ? 'over' : 'under'} budget this week.`,
+            value: isOverBudget ? 'You are over budget this week!' : 'You are on track this week.',
             group: "group.expensebuilder.widget"
           });
           await WidgetBridgePlugin.setItem({
@@ -259,12 +259,12 @@ const Dashboard = () => {
         } else {
           await WidgetBridgePlugin.setItem({
             key: "widget_title",
-            value: "Smart Spend",
+            value: `Today: ${currencySymbol}${todaySpend.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 1 })}`,
             group: "group.expensebuilder.widget"
           });
           await WidgetBridgePlugin.setItem({
             key: "widget_subtitle",
-            value: "Tap + to add a transaction.",
+            value: `This month: ${currencySymbol}${monthTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 1 })}`,
             group: "group.expensebuilder.widget"
           });
           await WidgetBridgePlugin.setItem({
@@ -380,12 +380,14 @@ const Dashboard = () => {
                 axisLine={false}
                 stroke="hsl(var(--muted-foreground))"
                 fontSize={12}
+                style={{ fontFamily: 'system-ui, sans-serif' }}
                 tickFormatter={(v: number) => `${currencySymbol}${v >= 1000 ? (v / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + 'k' : v}`}
               />
               <Tooltip
                 contentStyle={{
                   backgroundColor: 'hsl(var(--background))',
                   borderColor: 'hsl(var(--border))',
+                  fontFamily: 'system-ui, sans-serif'
                 }}
                 formatter={(v: number) => [`${currencySymbol}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Spent"]}
               />

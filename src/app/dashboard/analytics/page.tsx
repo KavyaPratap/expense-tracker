@@ -182,8 +182,6 @@ const Analytics = () => {
         if (monthKey in monthlySpending) {
           if (t.type === 'debit') {
             monthlySpending[monthKey] += t.amount;
-          } else if (t.type === 'credit') {
-            monthlySpending[monthKey] -= t.amount;
           }
         }
       } catch (e) { /* ignore */ }
@@ -385,16 +383,18 @@ const Analytics = () => {
                     axisLine={false}
                   />
                   <YAxis
-                    tickFormatter={(v) => `${currencySymbol}${v}`}
+                    tickFormatter={(v: number) => `${currencySymbol}${v}`}
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
+                    style={{ fontFamily: 'system-ui, sans-serif' }}
                   />
                   <Tooltip
                     formatter={(v: number) => [
                       `${currencySymbol}${v.toFixed(2)}`,
                       'Spent',
                     ]}
+                    contentStyle={{ fontFamily: 'system-ui, sans-serif' }}
                   />
                   <Line
                     dataKey="amount"
