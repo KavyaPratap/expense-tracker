@@ -6,7 +6,8 @@
 
 import { parseCSV, parseExcel, parsePDF, type ParseResult } from './parsers';
 import { detectTemplate, parseWithTemplate, type ExtractedTransaction } from './templates';
-import { extractWithGroq, extractImageWithGroq } from './groq';
+import { extractWithGroq } from './groq';
+import { extractFromImageWithGemini } from './gemini';
 import { convertAmount } from '@/lib/currency';
 import { formatDate } from '@/lib/utils';
 import {
@@ -170,10 +171,11 @@ async function executePipeline(input: PipelineInput): Promise<PipelineResult> {
             }
         }
 
-        // ── Step 4: AI extraction (Groq-Only) ──
+        // ── Step 4: AI extraction ──
         const groqKey = process.env.GROQ_API_KEY;
+        const geminiKey = process.env.GEMINI_API_KEY;
 
-        if (extracted.length === 0 && groqKey) {
+        if (extracted.length === 0 && (groqKey || geminiKey)) {
             // Check daily AI token usage limit
             const startOfDay = new Date();
             startOfDay.setHours(0, 0, 0, 0);
@@ -192,17 +194,25 @@ async function executePipeline(input: PipelineInput): Promise<PipelineResult> {
             }
 
             if (isImage) {
+                if (!geminiKey) {
+                    throw new Error("GEMINI_API_KEY is missing, cannot process images.");
+                }
                 try {
                     const base64 = input.fileBuffer.toString('base64');
-                    const result = await extractImageWithGroq(base64, groqKey, input.mimeType);
+                    // Use Gemini for images
+                    const result = await extractFromImageWithGemini(base64, input.mimeType, geminiKey);
                     extracted = result.transactions;
                     aiTokensUsed = result.tokensUsed;
                     extractionSource = 'ai_image';
                 } catch (error) {
-                    console.error('[pipeline] Groq vision extraction failed:', error);
+                    console.error('[pipeline] Gemini vision extraction failed:', error);
                     throw new Error(`Vision extraction error: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 }
             } else {
+                if (!groqKey) {
+                    throw new Error("GROQ_API_KEY is missing, cannot process text.");
+                }
+
                 // Pre-process text for better AI extraction
                 let aiInputText = parseResult.rawText;
                 const lines = aiInputText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
