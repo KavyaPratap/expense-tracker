@@ -117,30 +117,32 @@ export const ImportJobCard = ({ job }: ImportJobCardProps) => {
             isDeleting && 'opacity-50 pointer-events-none'
         )}>
             <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                    {/* File icon */}
-                    <div className="p-2 rounded-lg bg-muted shrink-0">
-                        <FileIcon className="h-5 w-5 text-muted-foreground" />
-                    </div>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {/* File icon */}
+                        <div className="p-2 rounded-lg bg-muted shrink-0">
+                            <FileIcon className="h-5 w-5 text-muted-foreground" />
+                        </div>
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{job.file_name}</p>
-                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                            <span>{formatFileSize(job.file_size)}</span>
-                            <span>•</span>
-                            <span>{timeAgo(job.created_at)}</span>
-                            {job.total_rows > 0 && (
-                                <>
-                                    <span>•</span>
-                                    <span>{job.total_rows} rows</span>
-                                </>
-                            )}
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{job.file_name}</p>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-xs text-muted-foreground">
+                                <span>{formatFileSize(job.file_size)}</span>
+                                <span>•</span>
+                                <span>{timeAgo(job.created_at)}</span>
+                                {job.total_rows > 0 && (
+                                    <>
+                                        <span>•</span>
+                                        <span>{job.total_rows} rows</span>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
 
                     {/* Status + Action */}
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-0 border-border/50 shrink-0">
                         <Badge className={cn('text-xs', config.color)} variant="secondary">
                             <StatusIcon className={cn('h-3 w-3 mr-1', isProcessing && 'animate-spin')} />
                             {config.label}
@@ -157,7 +159,7 @@ export const ImportJobCard = ({ job }: ImportJobCardProps) => {
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity"
                                 onClick={handleDelete}
                                 disabled={isDeleting}
                                 title="Remove imported job"
