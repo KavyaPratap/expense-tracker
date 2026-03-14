@@ -2,10 +2,8 @@
 'use client'
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertTriangle, X } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { AlertTriangle, X, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { useSupabase } from "@/lib/supabase/provider";
 import { useCollection, useDoc } from "@/hooks/use-supabase";
 import { LocalNotifications } from '@capacitor/local-notifications';
@@ -17,8 +15,10 @@ import type {
   Settings,
 } from "@/lib/types";
 import { getCurrencySymbol } from "@/lib/currency";
+import { createClient } from "@/lib/supabase/client";
 
 const NOTIFICATION_THRESHOLD = 0.8; // 80%
+const VALID_CURRENCIES = ['USD', 'EUR', 'GBP', 'INR'];
 
 export const BudgetNotifier = () => {
   const { session } = useSupabase();
@@ -41,6 +41,24 @@ export const BudgetNotifier = () => {
   const { data: settings } = useDoc<Settings>(
     user ? `settings?select=*&user_id=eq.${user.id}` : null
   );
+
+  // AUTO-FIX: If the database has an invalid/unsupported currency, silently correct it to INR
+  useEffect(() => {
+    if (!user || !settings) return;
+    if (settings.currency && !VALID_CURRENCIES.includes(settings.currency)) {
+      const supabase = createClient();
+      supabase
+        .from('settings')
+        .update({ currency: 'INR' })
+        .eq('user_id', user.id)
+        .then(({ error }) => {
+          if (!error) {
+            // Force SWR to refetch settings
+            window.location.reload();
+          }
+        });
+    }
+  }, [user, settings]);
 
   const currencySymbol = useMemo(
     () => getCurrencySymbol(settings?.currency),
@@ -88,7 +106,6 @@ export const BudgetNotifier = () => {
 
   useEffect(() => {
     const checkPermissions = async () => {
-      // Check standard notification permissions
       if (settings?.notifications) {
         const status = await LocalNotifications.checkPermissions();
         if (status.display === 'prompt') {
@@ -111,7 +128,6 @@ export const BudgetNotifier = () => {
     if (next) {
       setTriggeredBudget(next);
 
-      // Send system notification if enabled
       if (settings?.notifications === true) {
         const spentAmount = next.spent || 0;
         const rawPercent = (spentAmount / (next.amount || 1)) * 100;
@@ -122,9 +138,9 @@ export const BudgetNotifier = () => {
             {
               title: 'Budget Alert 🚨',
               body: `You've used ${percentRaw}% of your ${next.categoryName} budget.`,
-              id: Math.floor(Math.random() * 100000), // Random ID to allow multiple
-              schedule: { at: new Date(Date.now() + 1000) }, // 1 second delay
-              smallIcon: 'ic_stat_notification', // fallback icon name
+              id: Math.floor(Math.random() * 100000),
+              schedule: { at: new Date(Date.now() + 1000) },
+              smallIcon: 'ic_stat_notification',
               actionTypeId: "",
               extra: null
             }
@@ -155,56 +171,84 @@ export const BudgetNotifier = () => {
     Math.round((spent / amount) * 100)
   );
 
+  // Determine severity color
+  const isOverBudget = percent >= 100;
+  const isNearLimit = percent >= 90;
+
   return (
     <AnimatePresence>
       <motion.div
         className="fixed bottom-24 left-4 right-4 z-[100] mx-auto max-w-sm"
-        initial={{ opacity: 0, y: 40, scale: 0.95 }}
+        initial={{ opacity: 0, y: 60, scale: 0.9 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 40, scale: 0.95 }}
-        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        exit={{ opacity: 0, y: 60, scale: 0.9 }}
+        transition={{ type: "spring", stiffness: 400, damping: 25 }}
       >
-        <Card className="border-0 shadow-2xl relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500/90 via-orange-500/85 to-red-500/80 dark:from-amber-600/90 dark:via-orange-600/85 dark:to-red-600/80">
-          {/* Glass shimmer overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/10 pointer-events-none" />
+        <div className="relative rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+          {/* Gradient background */}
+          <div className={`absolute inset-0 ${
+            isOverBudget
+              ? 'bg-gradient-to-r from-rose-600 via-red-500 to-orange-500'
+              : isNearLimit
+              ? 'bg-gradient-to-r from-orange-600 via-amber-500 to-yellow-500'
+              : 'bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500'
+          }`} />
           
-          <CardContent className="p-4 relative">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1 h-8 w-8 text-white/70 hover:bg-white/20 hover:text-white"
+          {/* Decorative circles */}
+          <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/10" />
+          <div className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full bg-white/5" />
+
+          <div className="relative p-4">
+            {/* Close button */}
+            <button
               onClick={handleDismiss}
+              className="absolute right-3 top-3 h-6 w-6 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 transition-colors"
             >
-              <X className="h-4 w-4" />
-            </Button>
+              <X className="h-3.5 w-3.5 text-white" />
+            </button>
 
-            <div className="flex gap-3 mb-3">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
-                <AlertTriangle className="h-5 w-5 text-white" />
+            {/* Top row: Icon + Title */}
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="h-8 w-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                {isOverBudget ? (
+                  <TrendingUp className="h-4 w-4 text-white" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 text-white" />
+                )}
               </div>
-
-              <div className="pr-6 min-w-0 flex-1">
-                <h4 className="font-bold text-base mb-1 text-white leading-none">
-                  Budget Alert
-                </h4>
-                <p className="text-[13px] text-white/85 leading-tight break-words">
-                  You’ve spent <strong className="text-white">{currencySymbol}{Math.min(spent, amount).toFixed(2)}</strong> of <strong className="text-white">{currencySymbol}{amount.toFixed(2)}</strong> for <strong className="text-white">{triggeredBudget.categoryName}</strong>
-                </p>
-              </div>
+              <span className="font-bold text-white text-sm tracking-wide uppercase">
+                {isOverBudget ? 'Over Budget!' : 'Budget Alert'}
+              </span>
             </div>
 
-            <div className="mt-1">
-              <div className="mb-1.5 flex justify-between text-[11px] font-semibold text-white/80 uppercase tracking-wider">
-                <span>Spending Progress</span>
+            {/* Amount info */}
+            <div className="mb-3">
+              <p className="text-white/90 text-sm leading-relaxed">
+                <span className="font-semibold text-white text-lg">{currencySymbol}{Math.min(spent, amount).toFixed(0)}</span>
+                <span className="text-white/70"> of </span>
+                <span className="font-semibold text-white">{currencySymbol}{amount.toFixed(0)}</span>
+                <span className="text-white/70"> spent on </span>
+                <span className="font-semibold text-white">{triggeredBudget.categoryName}</span>
+              </p>
+            </div>
+
+            {/* Modern progress bar */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-[10px] font-bold text-white/70 uppercase tracking-widest">
+                <span>Progress</span>
                 <span>{percent}%</span>
               </div>
-              <Progress
-                value={percent}
-                className="h-2 bg-white/20 [&>div]:bg-white"
-              />
+              <div className="h-1.5 rounded-full bg-white/20 overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full bg-white"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${percent}%` }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                />
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </motion.div>
     </AnimatePresence>
   );

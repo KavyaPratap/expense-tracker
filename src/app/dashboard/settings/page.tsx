@@ -343,7 +343,7 @@ const Settings = () => {
     dark_mode: false,
     auto_categ: true,
     language: 'English',
-    currency: 'USD',
+    currency: 'INR',
   };
 
   type SettingsItem =
