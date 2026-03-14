@@ -7,9 +7,9 @@ import type { Settings } from "./types";
 
 const RATES: Record<Settings['currency'], number> = {
     USD: 1,
-    EUR: 0.93,
-    GBP: 0.79,
-    INR: 83.5,
+    EUR: 0.87,
+    GBP: 0.76,
+    INR: 92.58,
 };
 
 import { DollarSign, Euro, PoundSterling, IndianRupee } from 'lucide-react';

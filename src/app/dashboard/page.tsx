@@ -284,18 +284,18 @@ const Dashboard = () => {
 
   return (
     <>
-      <PageHeader
-        title="SmartSpend"
-        subtitle="Track your expenses effortlessly"
-        action={
-          <AddTransactionDialog
-            addTransaction={addTransaction}
-            categories={categories || []}
-            controlledOpen={isGlobalAddOpen}
-            setControlledOpen={setIsGlobalAddOpen}
-          />
-        }
-      />
+      <header className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">SmartSpend</h1>
+          <p className="text-sm text-muted-foreground mt-1">Track your expenses effortlessly</p>
+        </div>
+        <AddTransactionDialog
+          addTransaction={addTransaction}
+          categories={categories || []}
+          controlledOpen={isGlobalAddOpen}
+          setControlledOpen={setIsGlobalAddOpen}
+        />
+      </header>
 
       <Card className="mb-6 shadow-lg">
         <CardHeader>
