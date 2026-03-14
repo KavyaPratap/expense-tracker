@@ -21,6 +21,7 @@ import { useApp } from '@/contexts/AppContext';
 import { useCollection, useDoc } from '@/hooks/use-supabase';
 import { useSupabase } from '@/lib/supabase/provider';
 import type { Category, Group, Settings, Transaction } from '@/lib/types';
+import { getCurrencySymbol } from '@/lib/currency';
 import {
   CreditCard,
   Smartphone,
@@ -31,8 +32,6 @@ import {
 import { useMemo } from 'react';
 import { toast } from 'sonner';
 
-const getCurrencySymbol = (currency: string = 'INR') =>
-  ({ USD: '$', EUR: '€', GBP: '£', INR: '₹' }[currency] ?? '₹');
 
 const upiOptions = [
   { name: 'Google Pay', icon: Smartphone, scheme: 'gpay://' },
