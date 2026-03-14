@@ -31,8 +31,8 @@ import {
 import { useMemo } from 'react';
 import { toast } from 'sonner';
 
-const getCurrencySymbol = (currency: string = 'USD') =>
-  ({ USD: '$', EUR: '€', GBP: '£', INR: '₹' }[currency] ?? '$');
+const getCurrencySymbol = (currency: string = 'INR') =>
+  ({ USD: '$', EUR: '€', GBP: '£', INR: '₹' }[currency] ?? '₹');
 
 const upiOptions = [
   { name: 'Google Pay', icon: Smartphone, scheme: 'gpay://' },

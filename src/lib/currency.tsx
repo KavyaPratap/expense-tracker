@@ -37,8 +37,6 @@ export const getCurrencySymbol = (currency?: Settings['currency'] | string) => {
         EUR: "€",
         GBP: "£",
         INR: "₹",
-        PHP: "₱",
-        RUB: "₽",
     };
     if (!currency) return "₹";
     return symbols[currency] || "₹";

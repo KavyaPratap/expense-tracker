@@ -89,14 +89,12 @@ const CurrencySelector = ({
     { value: 'EUR', symbol: '€', icon: Euro },
     { value: 'GBP', symbol: '£', icon: PoundSterling },
     { value: 'INR', symbol: '\u20B9', icon: RupeeIcon },
-    { value: 'PHP', symbol: '₱', icon: DollarSign },
-    { value: 'RUB', symbol: '₽', icon: Euro },
   ] as const;
 
   return (
-    <div className="grid grid-cols-3 gap-2 p-2 bg-muted rounded-lg">
+    <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded-lg">
       {options.map((option) => {
-        const isSelected = value === option.value || (!options.find(o => o.value === value) && option.value === 'INR');
+        const isSelected = value === option.value;
         const isPending = pendingValue === option.value;
         const isFading = pendingValue && isSelected;
         const Icon = option.icon;
@@ -422,7 +420,10 @@ const Settings = () => {
           onChange: (v: boolean) => updateSettings({ auto_categ: v }),
         },
         {
-          icon: DollarSign,
+          icon: currentSettings.currency === 'INR' ? RupeeIcon
+            : currentSettings.currency === 'EUR' ? Euro
+            : currentSettings.currency === 'GBP' ? PoundSterling
+            : DollarSign,
           label: 'Currency',
           isCurrency: true,
           value: currentSettings.currency,

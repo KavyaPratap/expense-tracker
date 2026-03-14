@@ -158,7 +158,7 @@ export const BudgetNotifier = () => {
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-2rem)] max-w-sm"
+        className="fixed bottom-24 left-4 right-4 z-[100] mx-auto max-w-sm"
         initial={{ opacity: 0, y: 40, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 40, scale: 0.95 }}
