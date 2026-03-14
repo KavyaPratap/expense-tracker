@@ -16,30 +16,40 @@ import { DollarSign, Euro, PoundSterling, IndianRupee } from 'lucide-react';
 import { cn } from "./utils";
 import React from 'react';
 
+// Normalize currency: if not a valid supported currency, force to INR
+const normalizeCurrency = (currency?: string): string => {
+    const valid = ['USD', 'EUR', 'GBP', 'INR'];
+    if (!currency || !valid.includes(currency)) return 'INR';
+    return currency;
+};
+
 export const CurrencyIcon = ({
-    currency = "INR",
+    currency,
     className = "w-4 h-4"
 }: {
     currency?: string;
     className?: string
 }) => {
-    switch (currency) {
+    const normalized = normalizeCurrency(currency);
+    switch (normalized) {
+        case 'USD': return <DollarSign className={className} />;
         case 'EUR': return <Euro className={className} />;
         case 'GBP': return <PoundSterling className={className} />;
-        case 'INR': return <IndianRupee className={cn(className, "flex-shrink-0")} />;
-        default: return <IndianRupee className={cn(className, "flex-shrink-0")} />;
+        case 'INR':
+        default:
+            return <IndianRupee className={cn(className, "flex-shrink-0")} />;
     }
 };
 
 export const getCurrencySymbol = (currency?: Settings['currency'] | string) => {
+    const normalized = normalizeCurrency(currency);
     const symbols: Record<string, string> = {
         USD: "$",
         EUR: "€",
         GBP: "£",
         INR: "₹",
     };
-    if (!currency) return "₹";
-    return symbols[currency] || "₹";
+    return symbols[normalized] || "₹";
 };
 
 export const convertAmount = (
