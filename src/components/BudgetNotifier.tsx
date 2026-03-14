@@ -164,9 +164,9 @@ export const BudgetNotifier = () => {
         exit={{ opacity: 0, y: 40, scale: 0.95 }}
         transition={{ type: "spring", stiffness: 500, damping: 30 }}
       >
-        <Card className="bg-background dark:bg-[#1C1C1E] border border-warning/30 shadow-2xl relative overflow-hidden">
+        <Card className="bg-background dark:bg-[#1C1C1E] border border-warning/50 shadow-2xl relative overflow-hidden rounded-xl">
           {/* Subtle colored tint on top of background */}
-          <div className="absolute inset-0 bg-warning/5 pointer-events-none" />
+          <div className="absolute inset-0 bg-warning/10 pointer-events-none" />
           
           <CardContent className="p-4 relative">
             <Button
@@ -178,25 +178,22 @@ export const BudgetNotifier = () => {
               <X className="h-4 w-4" />
             </Button>
 
-            <div className="flex gap-4">
+            <div className="flex gap-4 mb-2">
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-warning/20">
                 <AlertTriangle className="h-5 w-5 text-warning" />
               </div>
 
-              <div className="flex-1 pr-6">
+              <div className="pr-6 w-[calc(100%-3rem)]">
                 <h4 className="font-semibold text-base mb-1 text-foreground leading-none">
                   Budget Alert
                 </h4>
-                <p className="text-[13px] text-muted-foreground leading-snug">
-                  You’ve spent{" "}
-                  <strong className="text-foreground">{currencySymbol}{Math.min(spent, amount).toFixed(2)}</strong> of{" "}
-                  <strong className="text-foreground">{currencySymbol}{amount.toFixed(2)}</strong> for{" "}
-                  <strong className="text-foreground">{triggeredBudget.categoryName}</strong>
+                <p className="text-[13px] text-muted-foreground leading-tight break-words pr-2">
+                  You’ve spent <strong className="text-foreground">{currencySymbol}{Math.min(spent, amount).toFixed(2)}</strong> of <strong className="text-foreground">{currencySymbol}{amount.toFixed(2)}</strong> for <strong className="text-foreground">{triggeredBudget.categoryName}</strong>
                 </p>
               </div>
             </div>
 
-            <div className="mt-4">
+            <div className="mt-2">
               <div className="mb-1.5 flex justify-between text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 <span>Spending Progress</span>
                 <span>{percent}%</span>

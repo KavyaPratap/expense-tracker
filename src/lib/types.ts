@@ -45,7 +45,7 @@ export interface Settings {
   dark_mode: boolean;
   auto_categ: boolean;
   language: string;
-  currency: "USD" | "EUR" | "GBP" | "INR";
+  currency: "USD" | "EUR" | "GBP" | "INR" | "PHP" | "RUB";
 }
 
 export interface GroupMember {
