@@ -89,12 +89,14 @@ const CurrencySelector = ({
     { value: 'EUR', symbol: '€', icon: Euro },
     { value: 'GBP', symbol: '£', icon: PoundSterling },
     { value: 'INR', symbol: '\u20B9', icon: RupeeIcon },
+    { value: 'PHP', symbol: '₱', icon: DollarSign },
+    { value: 'RUB', symbol: '₽', icon: Euro },
   ] as const;
 
   return (
-    <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded-lg">
+    <div className="grid grid-cols-3 gap-2 p-2 bg-muted rounded-lg">
       {options.map((option) => {
-        const isSelected = value === option.value;
+        const isSelected = value === option.value || (!options.find(o => o.value === value) && option.value === 'INR');
         const isPending = pendingValue === option.value;
         const isFading = pendingValue && isSelected;
         const Icon = option.icon;
