@@ -31,14 +31,17 @@ export const CurrencyIcon = ({
     }
 };
 
-export const getCurrencySymbol = (currency: Settings['currency'] | string = "INR") => {
+export const getCurrencySymbol = (currency?: Settings['currency'] | string) => {
     const symbols: Record<string, string> = {
         USD: "$",
         EUR: "€",
         GBP: "£",
         INR: "₹",
+        PHP: "₱",
+        RUB: "₽",
     };
-    return symbols[currency] || "$";
+    if (!currency) return "₹";
+    return symbols[currency] || "₹";
 };
 
 export const convertAmount = (

@@ -24,7 +24,7 @@ export const BudgetNotifier = () => {
   const { session } = useSupabase();
   const user = session?.user;
   const [triggeredBudget, setTriggeredBudget] = useState<Budget | null>(null);
-  const [dismissedCategories, setDismissedCategories] = useState<string[]>([]);
+  const [dismissedAlerts, setDismissedAlerts] = useState<Record<string, number>>({});
 
   const { data: budgetSettings } = useDoc<BudgetSettings>(
     user ? `budgets?user_id=eq.${user.id}` : null
@@ -100,10 +100,11 @@ export const BudgetNotifier = () => {
 
     const next = activeBudgets.find((b) => {
       const spent = b.spent ?? 0;
+      const dismissedSpent = dismissedAlerts[b.categoryName] || 0;
       return (
         b.amount > 0 &&
         spent / b.amount >= NOTIFICATION_THRESHOLD &&
-        !dismissedCategories.includes(b.categoryName)
+        spent > dismissedSpent
       );
     });
 
@@ -113,13 +114,14 @@ export const BudgetNotifier = () => {
       // Send system notification if enabled
       if (settings?.notifications === true) {
         const spentAmount = next.spent || 0;
-        const percent = ((spentAmount / (next.amount || 1)) * 100).toFixed(0);
+        const rawPercent = (spentAmount / (next.amount || 1)) * 100;
+        const percentRaw = Math.min(100, Math.round(rawPercent));
 
         LocalNotifications.schedule({
           notifications: [
             {
               title: 'Budget Alert 🚨',
-              body: `You've used ${percent}% of your ${next.categoryName} budget.`,
+              body: `You've used ${percentRaw}% of your ${next.categoryName} budget.`,
               id: Math.floor(Math.random() * 100000), // Random ID to allow multiple
               schedule: { at: new Date(Date.now() + 1000) }, // 1 second delay
               smallIcon: 'ic_stat_notification', // fallback icon name
@@ -132,15 +134,15 @@ export const BudgetNotifier = () => {
     } else {
       setTriggeredBudget(null);
     }
-  }, [activeBudgets, dismissedCategories, settings]);
+  }, [activeBudgets, dismissedAlerts, settings]);
 
   const handleDismiss = () => {
     if (!triggeredBudget) return;
 
-    setDismissedCategories((prev) => [
+    setDismissedAlerts((prev) => ({
       ...prev,
-      triggeredBudget.categoryName,
-    ]);
+      [triggeredBudget.categoryName]: triggeredBudget.spent || 0,
+    }));
     setTriggeredBudget(null);
   };
 
@@ -156,47 +158,52 @@ export const BudgetNotifier = () => {
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md"
+        className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-2rem)] max-w-sm"
         initial={{ opacity: 0, y: 40, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 40, scale: 0.95 }}
         transition={{ type: "spring", stiffness: 500, damping: 30 }}
       >
-        <Card className="border-warning/50 bg-warning/10 shadow-xl">
+        <Card className="bg-background dark:bg-[#1C1C1E] border border-warning/30 shadow-2xl relative overflow-hidden">
+          {/* Subtle colored tint on top of background */}
+          <div className="absolute inset-0 bg-warning/5 pointer-events-none" />
+          
           <CardContent className="p-4 relative">
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-2 top-2"
+              className="absolute right-1 top-1 h-8 w-8 text-muted-foreground hover:bg-warning/10 hover:text-foreground"
               onClick={handleDismiss}
             >
               <X className="h-4 w-4" />
             </Button>
 
             <div className="flex gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-warning/20">
-                <AlertTriangle className="h-6 w-6 text-warning" />
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-warning/20">
+                <AlertTriangle className="h-5 w-5 text-warning" />
               </div>
 
-              <div className="flex-1">
-                <h4 className="font-bold">Budget Alert</h4>
-                <p className="text-sm text-muted-foreground">
+              <div className="flex-1 pr-6">
+                <h4 className="font-semibold text-base mb-1 text-foreground leading-none">
+                  Budget Alert
+                </h4>
+                <p className="text-[13px] text-muted-foreground leading-snug">
                   You’ve spent{" "}
-                  <strong>{currencySymbol}{spent.toFixed(2)}</strong> of{" "}
-                  <strong>{currencySymbol}{amount.toFixed(2)}</strong> for{" "}
-                  <strong>{triggeredBudget.categoryName}</strong>
+                  <strong className="text-foreground">{currencySymbol}{Math.min(spent, amount).toFixed(2)}</strong> of{" "}
+                  <strong className="text-foreground">{currencySymbol}{amount.toFixed(2)}</strong> for{" "}
+                  <strong className="text-foreground">{triggeredBudget.categoryName}</strong>
                 </p>
               </div>
             </div>
 
             <div className="mt-4">
-              <div className="mb-1 flex justify-between text-xs">
+              <div className="mb-1.5 flex justify-between text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 <span>Spending Progress</span>
                 <span>{percent}%</span>
               </div>
               <Progress
                 value={percent}
-                className="h-2 [&>div]:bg-warning"
+                className="h-2 bg-warning/20 [&>div]:bg-warning"
               />
             </div>
           </CardContent>

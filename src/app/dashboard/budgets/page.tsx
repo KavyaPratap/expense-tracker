@@ -239,7 +239,6 @@ const Budgets = () => {
     <>
       <PageHeader
         title="Manage Budgets"
-        subtitle="Set monthly spending limits for your categories."
         action={
           <div className="flex items-center gap-2">
             <AddBudgetDialog
