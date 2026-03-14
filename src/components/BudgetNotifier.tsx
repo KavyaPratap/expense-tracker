@@ -164,43 +164,43 @@ export const BudgetNotifier = () => {
         exit={{ opacity: 0, y: 40, scale: 0.95 }}
         transition={{ type: "spring", stiffness: 500, damping: 30 }}
       >
-        <Card className="bg-background dark:bg-[#1C1C1E] border border-warning/50 shadow-2xl relative overflow-hidden rounded-xl">
-          {/* Subtle colored tint on top of background */}
-          <div className="absolute inset-0 bg-warning/10 pointer-events-none" />
+        <Card className="border-0 shadow-2xl relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500/90 via-orange-500/85 to-red-500/80 dark:from-amber-600/90 dark:via-orange-600/85 dark:to-red-600/80">
+          {/* Glass shimmer overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/10 pointer-events-none" />
           
           <CardContent className="p-4 relative">
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-1 top-1 h-8 w-8 text-muted-foreground hover:bg-warning/10 hover:text-foreground"
+              className="absolute right-1 top-1 h-8 w-8 text-white/70 hover:bg-white/20 hover:text-white"
               onClick={handleDismiss}
             >
               <X className="h-4 w-4" />
             </Button>
 
-            <div className="flex gap-4 mb-2">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-warning/20">
-                <AlertTriangle className="h-5 w-5 text-warning" />
+            <div className="flex gap-3 mb-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
+                <AlertTriangle className="h-5 w-5 text-white" />
               </div>
 
-              <div className="pr-6 w-[calc(100%-3rem)]">
-                <h4 className="font-semibold text-base mb-1 text-foreground leading-none">
+              <div className="pr-6 min-w-0 flex-1">
+                <h4 className="font-bold text-base mb-1 text-white leading-none">
                   Budget Alert
                 </h4>
-                <p className="text-[13px] text-muted-foreground leading-tight break-words pr-2">
-                  You’ve spent <strong className="text-foreground">{currencySymbol}{Math.min(spent, amount).toFixed(2)}</strong> of <strong className="text-foreground">{currencySymbol}{amount.toFixed(2)}</strong> for <strong className="text-foreground">{triggeredBudget.categoryName}</strong>
+                <p className="text-[13px] text-white/85 leading-tight break-words">
+                  You’ve spent <strong className="text-white">{currencySymbol}{Math.min(spent, amount).toFixed(2)}</strong> of <strong className="text-white">{currencySymbol}{amount.toFixed(2)}</strong> for <strong className="text-white">{triggeredBudget.categoryName}</strong>
                 </p>
               </div>
             </div>
 
-            <div className="mt-2">
-              <div className="mb-1.5 flex justify-between text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+            <div className="mt-1">
+              <div className="mb-1.5 flex justify-between text-[11px] font-semibold text-white/80 uppercase tracking-wider">
                 <span>Spending Progress</span>
                 <span>{percent}%</span>
               </div>
               <Progress
                 value={percent}
-                className="h-2 bg-warning/20 [&>div]:bg-warning"
+                className="h-2 bg-white/20 [&>div]:bg-white"
               />
             </div>
           </CardContent>

@@ -27,7 +27,7 @@ export const CurrencyIcon = ({
         case 'EUR': return <Euro className={className} />;
         case 'GBP': return <PoundSterling className={className} />;
         case 'INR': return <IndianRupee className={cn(className, "flex-shrink-0")} />;
-        default: return <DollarSign className={className} />;
+        default: return <IndianRupee className={cn(className, "flex-shrink-0")} />;
     }
 };
 
