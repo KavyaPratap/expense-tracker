@@ -9,7 +9,6 @@ const config = {
     './app/**/*.{ts,tsx}',
     './src/**/*.{ts,tsx}',
   ],
-  // ... (keeping the middle the same, just targeting the top and bottom)
   theme: {
     container: {
       center: true,
@@ -19,6 +18,20 @@ const config = {
       },
     },
     extend: {
+      // 1. ADD THE FONT FALLBACK STACK HERE
+      fontFamily: {
+        sans: [
+          'var(--font-pt-sans)', 
+          'system-ui', 
+          '-apple-system', 
+          'BlinkMacSystemFont', 
+          '"Segoe UI"', 
+          'Roboto', 
+          'Arial', 
+          'sans-serif'
+        ],
+      },
+      // 2. YOUR EXISTING COLORS AND SETTINGS
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
