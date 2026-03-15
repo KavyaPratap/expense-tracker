@@ -8,9 +8,11 @@ import { MobileNav } from "@/components/MobileNav";
 import { AppProvider } from "@/contexts/AppContext";
 import { VoiceExpenseWidget } from "@/components/VoiceExpenseWidget";
 
+// Configure the font with a CSS variable for Tailwind
 const ptSans = PT_Sans({
   subsets: ["latin", "latin-ext"],
   weight: ["400", "700"],
+  variable: "--font-pt-sans", 
 });
 
 export const metadata: Metadata = {
@@ -38,7 +40,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${ptSans.className} bg-very-light-blue`}>
+      {/* Applying the CSS variable and the font-sans utility to the body */}
+      <body className={`${ptSans.variable} font-sans bg-very-light-blue`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
