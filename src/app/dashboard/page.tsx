@@ -45,7 +45,6 @@ import Link from "next/link";
 import { useCollection, useDoc } from "@/hooks/use-supabase";
 import type { Transaction, Settings, Category, BudgetSettings } from "@/lib/types";
 
-
 const getPaymentIcon = (method?: string) => {
   switch (method) {
     case 'card': return <CreditCard className="h-3 w-3" />;
@@ -98,6 +97,12 @@ const Dashboard = () => {
   const currencySymbol = useMemo(
     () => getCurrencySymbol(settings?.currency),
     [settings]
+  );
+
+  // Safe string for native Android widgets which might lack the ₹ glyph in system fonts
+  const widgetCurrencyString = useMemo(
+    () => settings?.currency === 'INR' ? 'Rs ' : currencySymbol,
+    [settings, currencySymbol]
   );
 
   const {
@@ -243,7 +248,7 @@ const Dashboard = () => {
         if (hasBudgets) {
           await WidgetBridgePlugin.setItem({
             key: "widget_title",
-            value: `Budget: ${currencySymbol}${budgetDifference > 0 ? '+' : ''}${budgetDifference}%`,
+            value: `Budget: ${widgetCurrencyString}${budgetDifference > 0 ? '+' : ''}${budgetDifference}%`,
             group: "group.expensebuilder.widget"
           });
           await WidgetBridgePlugin.setItem({
@@ -259,12 +264,12 @@ const Dashboard = () => {
         } else {
           await WidgetBridgePlugin.setItem({
             key: "widget_title",
-            value: `Today: ${currencySymbol}${todaySpend.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 1 })}`,
+            value: `Today: ${widgetCurrencyString}${todaySpend.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 1 })}`,
             group: "group.expensebuilder.widget"
           });
           await WidgetBridgePlugin.setItem({
             key: "widget_subtitle",
-            value: `This month: ${currencySymbol}${monthTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 1 })}`,
+            value: `This month: ${widgetCurrencyString}${monthTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 1 })}`,
             group: "group.expensebuilder.widget"
           });
           await WidgetBridgePlugin.setItem({
@@ -275,12 +280,11 @@ const Dashboard = () => {
         }
         await WidgetBridgePlugin.reloadAllTimelines();
       } catch (e) {
-        // Widget bridge is only available on native devices
         console.debug("WidgetBridge not available in web context");
       }
     };
     syncWidgetData();
-  }, [hasBudgets, isOverBudget, budgetDifference]);
+  }, [hasBudgets, isOverBudget, budgetDifference, widgetCurrencyString, todaySpend, monthTotal]);
 
   return (
     <>
@@ -380,14 +384,16 @@ const Dashboard = () => {
                 axisLine={false}
                 stroke="hsl(var(--muted-foreground))"
                 fontSize={12}
-                style={{ fontFamily: 'system-ui, sans-serif' }}
+                // Bulletproof font family fallback for SVG rendering
+                style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
                 tickFormatter={(v: number) => `${currencySymbol}${v >= 1000 ? (v / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + 'k' : v}`}
               />
               <Tooltip
                 contentStyle={{
                   backgroundColor: 'hsl(var(--background))',
                   borderColor: 'hsl(var(--border))',
-                  fontFamily: 'system-ui, sans-serif'
+                  // Bulletproof font family for Tooltips
+                  fontFamily: 'Arial, Helvetica, sans-serif'
                 }}
                 formatter={(v: number) => [`${currencySymbol}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Spent"]}
               />
